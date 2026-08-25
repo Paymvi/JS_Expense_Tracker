@@ -1,122 +1,349 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import "./App.css";
+
+import MonthlySnapshot from "./components/MonthlySnapshot";
+import WeeklySpending from "./components/WeeklySpending";
+import AddExpenseModal from "./components/AddExpenseModal";
+
+import {
+  buildMonthlySnapshot,
+  buildWeeklySpending,
+  formatCurrency,
+  getCurrentMonthCount,
+  getCurrentMonthTotal,
+} from "./utils/expenseHelpers";
+
+
+const STORAGE_KEY =
+  "expense-tracker-expenses-v1";
+
 
 function App() {
-  const [count, setCount] = useState(0)
+
+  // ======================================================
+  // EXPENSE DATA
+  // ======================================================
+
+  const [expenses, setExpenses] =
+    useState(() => {
+
+      try {
+
+        const saved =
+          localStorage.getItem(
+            STORAGE_KEY
+          );
+
+
+        if (!saved) {
+          return [];
+        }
+
+
+        const parsed =
+          JSON.parse(saved);
+
+
+        return Array.isArray(parsed)
+          ? parsed
+          : [];
+
+      } catch (error) {
+
+        console.error(
+          "Could not load expenses:",
+          error
+        );
+
+        return [];
+
+      }
+
+    });
+
+
+  // ======================================================
+  // UI STATE
+  // ======================================================
+
+  const [
+    isAddModalOpen,
+    setIsAddModalOpen,
+  ] = useState(false);
+
+
+  const [
+    showTrends,
+    setShowTrends,
+  ] = useState(true);
+
+
+  const [
+    selectedWeekIndex,
+    setSelectedWeekIndex,
+  ] = useState(11);
+
+
+  // ======================================================
+  // SAVE EXPENSES
+  // ======================================================
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(expenses)
+    );
+
+  }, [expenses]);
+
+
+  // ======================================================
+  // CALCULATED DATA
+  // ======================================================
+
+  const currentMonthTotal =
+    useMemo(() => {
+
+      return getCurrentMonthTotal(
+        expenses
+      );
+
+    }, [expenses]);
+
+
+  const currentMonthCount =
+    useMemo(() => {
+
+      return getCurrentMonthCount(
+        expenses
+      );
+
+    }, [expenses]);
+
+
+  const monthlySnapshot =
+    useMemo(() => {
+
+      return buildMonthlySnapshot(
+        expenses,
+        3
+      );
+
+    }, [expenses]);
+
+
+  const weeks =
+    useMemo(() => {
+
+      return buildWeeklySpending(
+        expenses,
+        12
+      );
+
+    }, [expenses]);
+
+
+  // Always start on the newest week.
+  useEffect(() => {
+
+    if (weeks.length > 0) {
+
+      setSelectedWeekIndex(
+        weeks.length - 1
+      );
+
+    }
+
+  }, [weeks.length]);
+
+
+  // ======================================================
+  // ADD EXPENSE
+  // ======================================================
+
+  function addExpense(
+    expense
+  ) {
+
+    const id =
+      globalThis.crypto
+        ?.randomUUID?.() ??
+      `${Date.now()}-${Math.random()}`;
+
+
+    const newExpense = {
+
+      id,
+
+      ...expense,
+
+      createdAt:
+        new Date().toISOString(),
+    };
+
+
+    // Newest expense goes first.
+    setExpenses(
+      (previous) => [
+        newExpense,
+        ...previous,
+      ]
+    );
+  }
+
+
+  // ======================================================
+  // CURRENT MONTH LABEL
+  // ======================================================
+
+  const currentMonthLabel =
+    new Date().toLocaleString(
+      "en-US",
+      {
+        month: "long",
+        year: "numeric",
+      }
+    );
+
+
+  // ======================================================
+  // UI
+  // ======================================================
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+    <div className="app">
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <main className="app-shell">
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+
+        {/* HEADER */}
+
+        <header className="app-header">
+
+          <div>
+
+            <div className="app-eyebrow">
+              Expense Tracker
+            </div>
+
+            <h1>
+              Overview
+            </h1>
+
+          </div>
+
+        </header>
+
+
+        {/* THIS MONTH HERO */}
+
+        <section className="monthly-total-card">
+
+          <div className="monthly-total-label">
+            Spent this month
+          </div>
+
+
+          <div className="monthly-total">
+
+            {formatCurrency(
+              currentMonthTotal
+            )}
+
+          </div>
+
+
+          <div className="monthly-total-footer">
+
+            <span>
+              {currentMonthLabel}
+            </span>
+
+            <span>
+              {currentMonthCount}{" "}
+              {currentMonthCount === 1
+                ? "transaction"
+                : "transactions"}
+            </span>
+
+          </div>
+
+        </section>
+
+
+        {/* MONTHLY SNAPSHOTS */}
+
+        <MonthlySnapshot
+          monthlySnapshot={
+            monthlySnapshot
+          }
+          showTrends={
+            showTrends
+          }
+          setShowTrends={
+            setShowTrends
+          }
+        />
+
+
+        {/* WEEKLY GRAPH */}
+
+        <WeeklySpending
+          weeks={weeks}
+          selectedIndex={
+            selectedWeekIndex
+          }
+          onSelect={
+            setSelectedWeekIndex
+          }
+        />
+
+      </main>
+
+
+      {/* FLOATING ADD BUTTON */}
+
+      <button
+        type="button"
+        className="floating-add-button"
+        onClick={() => {
+          setIsAddModalOpen(
+            true
+          );
+        }}
+        aria-label="Add expense"
+      >
+        +
+      </button>
+
+
+      {/* ADD MODAL */}
+
+      <AddExpenseModal
+        isOpen={
+          isAddModalOpen
+        }
+        onClose={() => {
+          setIsAddModalOpen(
+            false
+          );
+        }}
+        onAddExpense={
+          addExpense
+        }
+      />
+
+    </div>
+
+  );
 }
 
-export default App
+
+export default App;
