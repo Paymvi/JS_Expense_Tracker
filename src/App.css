@@ -862,3 +862,482 @@ button {
   }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   TRANSACTIONS PAGE
+========================================================= */
+
+.transactions-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 18px;
+
+  margin-bottom: 28px;
+}
+
+.transactions-header h1 {
+  margin: 2px 0 0;
+
+  font-size: 28px;
+
+  letter-spacing: -0.04em;
+}
+
+.transaction-count {
+  padding: 7px 10px;
+
+  border-radius: 999px;
+
+  background: #e8ebe8;
+
+  color: #606862;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   TRANSACTION GROUPS
+========================================================= */
+
+.transaction-groups {
+  display: grid;
+
+  gap: 27px;
+}
+
+.transaction-day {
+  min-width: 0;
+}
+
+
+/* =========================================================
+   DATE HEADER
+
+   Example:
+
+   Mon, Aug 24                  $52.41
+========================================================= */
+
+.transaction-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 0 5px;
+
+  margin-bottom: 9px;
+}
+
+.transaction-day-header h2 {
+  margin: 0;
+
+  color: #343b36;
+
+  font-size: 17px;
+
+  font-weight: 750;
+
+  letter-spacing: -0.02em;
+}
+
+.transaction-day-header strong {
+  color: #343b36;
+
+  font-size: 16px;
+
+  font-weight: 750;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   DAILY TRANSACTION CARD
+========================================================= */
+
+.transaction-list {
+  overflow: hidden;
+
+  border:
+    1px solid #e3e6e3;
+
+  border-radius: 18px;
+
+  background: white;
+
+  box-shadow:
+    0 3px 12px
+    rgba(0, 0, 0, 0.025);
+}
+
+
+/* =========================================================
+   INDIVIDUAL TRANSACTION
+========================================================= */
+
+.transaction-row {
+  width: 100%;
+
+  min-height: 76px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 15px 18px;
+
+  border: 0;
+
+  border-bottom:
+    1px solid #ededed;
+
+  background: white;
+
+  color: inherit;
+
+  text-align: left;
+
+  transition:
+    background 140ms ease;
+}
+
+
+/* Remove divider from last transaction */
+
+.transaction-row:last-child {
+  border-bottom: 0;
+}
+
+
+.transaction-row:hover {
+  background: #f8faf8;
+}
+
+
+.transaction-row:active {
+  background: #f1f4f1;
+}
+
+
+/* =========================================================
+   TRANSACTION LEFT SIDE
+========================================================= */
+
+.transaction-info {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 5px;
+}
+
+
+.transaction-name {
+  overflow: hidden;
+
+  color: #262c28;
+
+  font-size: 15px;
+
+  font-weight: 700;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+
+.transaction-category {
+  width: fit-content;
+
+  padding:
+    4px 7px;
+
+  border-radius: 999px;
+
+  background: #eef1ee;
+
+  color: #717a73;
+
+  font-size: 10px;
+
+  font-weight: 650;
+}
+
+
+/* =========================================================
+   TRANSACTION RIGHT SIDE
+========================================================= */
+
+.transaction-amount {
+  flex-shrink: 0;
+
+  color: #252b27;
+
+  font-size: 16px;
+
+  font-weight: 750;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   EMPTY TRANSACTIONS
+========================================================= */
+
+.transactions-empty {
+  min-height: 420px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding: 40px 20px;
+
+  text-align: center;
+}
+
+
+.transactions-empty-icon {
+  width: 58px;
+  height: 58px;
+
+  display: grid;
+  place-items: center;
+
+  margin-bottom: 17px;
+
+  border-radius: 50%;
+
+  background: #e8ebe8;
+
+  color: #526057;
+
+  font-size: 25px;
+
+  font-weight: 700;
+}
+
+
+.transactions-empty h2 {
+  margin:
+    0 0 7px;
+
+  font-size: 18px;
+}
+
+
+.transactions-empty p {
+  max-width: 280px;
+
+  margin: 0;
+
+  color: #7b837d;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   BOTTOM NAVIGATION
+========================================================= */
+
+.bottom-nav {
+  position: fixed;
+
+  z-index: 40;
+
+  left: 50%;
+  bottom: 0;
+
+  width: min(760px, 100%);
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, 1fr);
+
+  padding:
+    10px 14px
+    max(
+      10px,
+      env(safe-area-inset-bottom)
+    );
+
+  border-top:
+    1px solid #e3e6e3;
+
+  background:
+    rgba(255, 255, 255, 0.96);
+
+  backdrop-filter:
+    blur(12px);
+
+  transform:
+    translateX(-50%);
+
+  box-shadow:
+    0 -4px 16px
+    rgba(0, 0, 0, 0.035);
+}
+
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 4px;
+
+  min-height: 48px;
+
+  border-radius: 12px;
+
+  color: #979d99;
+
+  font-size: 10px;
+
+  font-weight: 650;
+
+  text-decoration: none;
+
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+
+.bottom-nav-item:hover {
+  background: #f4f6f4;
+}
+
+
+.bottom-nav-item.active {
+  color: #267852;
+}
+
+
+/* =========================================================
+   BOTTOM NAV ICONS
+========================================================= */
+
+.bottom-nav-icon {
+  width: 22px;
+  height: 22px;
+
+  display: block;
+}
+
+
+.bottom-nav-icon svg {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+
+  fill: currentColor;
+}
+
+
+/* =========================================================
+   FAB POSITION WITH BOTTOM NAV
+
+   Raise the + button so it sits ABOVE the navigation.
+========================================================= */
+
+.floating-add-button {
+  bottom: 83px;
+
+  z-index: 45;
+}
+
+
+/* =========================================================
+   MOBILE TRANSACTIONS
+========================================================= */
+
+@media
+(max-width: 600px) {
+
+  .transactions-header {
+    margin-bottom: 24px;
+  }
+
+
+  .transactions-header h1 {
+    font-size: 26px;
+  }
+
+
+  .transaction-groups {
+    gap: 23px;
+  }
+
+
+  .transaction-day-header {
+    padding:
+      0 3px;
+  }
+
+
+  .transaction-row {
+    min-height: 72px;
+
+    padding:
+      14px 15px;
+  }
+
+
+  .transaction-name {
+    font-size: 14px;
+  }
+
+
+  .transaction-amount {
+    font-size: 15px;
+  }
+
+
+  .floating-add-button {
+    bottom: 82px;
+  }
+
+}

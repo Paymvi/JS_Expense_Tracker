@@ -1,22 +1,20 @@
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
+import {
+  Route,
+  Routes,
+} from "react-router-dom";
+
 import "./App.css";
 
-import MonthlySnapshot from "./components/MonthlySnapshot";
-import WeeklySpending from "./components/WeeklySpending";
 import AddExpenseModal from "./components/AddExpenseModal";
+import BottomNav from "./components/BottomNav";
 
-import {
-  buildMonthlySnapshot,
-  buildWeeklySpending,
-  formatCurrency,
-  getCurrentMonthCount,
-  getCurrentMonthTotal,
-} from "./utils/expenseHelpers";
+import OverviewPage from "./pages/OverviewPage";
+import TransactionsPage from "./pages/TransactionsPage";
 
 
 const STORAGE_KEY =
@@ -29,64 +27,55 @@ function App() {
   // EXPENSE DATA
   // ======================================================
 
-  const [expenses, setExpenses] =
-    useState(() => {
+  const [
+    expenses,
+    setExpenses,
+  ] = useState(() => {
 
-      try {
+    try {
 
-        const saved =
-          localStorage.getItem(
-            STORAGE_KEY
-          );
-
-
-        if (!saved) {
-          return [];
-        }
-
-
-        const parsed =
-          JSON.parse(saved);
-
-
-        return Array.isArray(parsed)
-          ? parsed
-          : [];
-
-      } catch (error) {
-
-        console.error(
-          "Could not load expenses:",
-          error
+      const saved =
+        localStorage.getItem(
+          STORAGE_KEY
         );
 
-        return [];
 
+      if (!saved) {
+        return [];
       }
 
-    });
+
+      const parsed =
+        JSON.parse(saved);
+
+
+      return Array.isArray(parsed)
+        ? parsed
+        : [];
+
+    } catch (error) {
+
+      console.error(
+        "Could not load expenses:",
+        error
+      );
+
+
+      return [];
+
+    }
+
+  });
 
 
   // ======================================================
-  // UI STATE
+  // ADD MODAL
   // ======================================================
 
   const [
     isAddModalOpen,
     setIsAddModalOpen,
   ] = useState(false);
-
-
-  const [
-    showTrends,
-    setShowTrends,
-  ] = useState(true);
-
-
-  const [
-    selectedWeekIndex,
-    setSelectedWeekIndex,
-  ] = useState(11);
 
 
   // ======================================================
@@ -101,66 +90,6 @@ function App() {
     );
 
   }, [expenses]);
-
-
-  // ======================================================
-  // CALCULATED DATA
-  // ======================================================
-
-  const currentMonthTotal =
-    useMemo(() => {
-
-      return getCurrentMonthTotal(
-        expenses
-      );
-
-    }, [expenses]);
-
-
-  const currentMonthCount =
-    useMemo(() => {
-
-      return getCurrentMonthCount(
-        expenses
-      );
-
-    }, [expenses]);
-
-
-  const monthlySnapshot =
-    useMemo(() => {
-
-      return buildMonthlySnapshot(
-        expenses,
-        3
-      );
-
-    }, [expenses]);
-
-
-  const weeks =
-    useMemo(() => {
-
-      return buildWeeklySpending(
-        expenses,
-        12
-      );
-
-    }, [expenses]);
-
-
-  // Always start on the newest week.
-  useEffect(() => {
-
-    if (weeks.length > 0) {
-
-      setSelectedWeekIndex(
-        weeks.length - 1
-      );
-
-    }
-
-  }, [weeks.length]);
 
 
   // ======================================================
@@ -185,31 +114,18 @@ function App() {
 
       createdAt:
         new Date().toISOString(),
+
     };
 
 
-    // Newest expense goes first.
     setExpenses(
       (previous) => [
         newExpense,
         ...previous,
       ]
     );
+
   }
-
-
-  // ======================================================
-  // CURRENT MONTH LABEL
-  // ======================================================
-
-  const currentMonthLabel =
-    new Date().toLocaleString(
-      "en-US",
-      {
-        month: "long",
-        year: "numeric",
-      }
-    );
 
 
   // ======================================================
@@ -220,103 +136,43 @@ function App() {
 
     <div className="app">
 
-      <main className="app-shell">
+      {/* PAGES */}
 
+      <Routes>
 
-        {/* HEADER */}
-
-        <header className="app-header">
-
-          <div>
-
-            <div className="app-eyebrow">
-              Expense Tracker
-            </div>
-
-            <h1>
-              Overview
-            </h1>
-
-          </div>
-
-        </header>
-
-
-        {/* THIS MONTH HERO */}
-
-        <section className="monthly-total-card">
-
-          <div className="monthly-total-label">
-            Spent this month
-          </div>
-
-
-          <div className="monthly-total">
-
-            {formatCurrency(
-              currentMonthTotal
-            )}
-
-          </div>
-
-
-          <div className="monthly-total-footer">
-
-            <span>
-              {currentMonthLabel}
-            </span>
-
-            <span>
-              {currentMonthCount}{" "}
-              {currentMonthCount === 1
-                ? "transaction"
-                : "transactions"}
-            </span>
-
-          </div>
-
-        </section>
-
-
-        {/* MONTHLY SNAPSHOTS */}
-
-        <MonthlySnapshot
-          monthlySnapshot={
-            monthlySnapshot
-          }
-          showTrends={
-            showTrends
-          }
-          setShowTrends={
-            setShowTrends
+        <Route
+          path="/"
+          element={
+            <OverviewPage
+              expenses={expenses}
+            />
           }
         />
 
 
-        {/* WEEKLY GRAPH */}
-
-        <WeeklySpending
-          weeks={weeks}
-          selectedIndex={
-            selectedWeekIndex
-          }
-          onSelect={
-            setSelectedWeekIndex
+        <Route
+          path="/transactions"
+          element={
+            <TransactionsPage
+              expenses={expenses}
+            />
           }
         />
 
-      </main>
+      </Routes>
 
 
-      {/* FLOATING ADD BUTTON */}
+      {/* ADD EXPENSE BUTTON */}
 
       <button
         type="button"
         className="floating-add-button"
         onClick={() => {
+
           setIsAddModalOpen(
             true
           );
+
         }}
         aria-label="Add expense"
       >
@@ -324,16 +180,23 @@ function App() {
       </button>
 
 
-      {/* ADD MODAL */}
+      {/* BOTTOM NAVIGATION */}
+
+      <BottomNav />
+
+
+      {/* ADD EXPENSE MODAL */}
 
       <AddExpenseModal
         isOpen={
           isAddModalOpen
         }
         onClose={() => {
+
           setIsAddModalOpen(
             false
           );
+
         }}
         onAddExpense={
           addExpense
@@ -343,6 +206,7 @@ function App() {
     </div>
 
   );
+
 }
 
 
