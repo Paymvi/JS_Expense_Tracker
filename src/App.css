@@ -1815,3 +1815,124 @@ button {
   }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   IMPORT / EXPORT
+========================================================= */
+
+.import-export-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 8px;
+
+  margin:
+    -12px 0
+    25px;
+}
+
+
+/* =========================================================
+   IMPORT / EXPORT BUTTON
+========================================================= */
+
+.data-control-button {
+  min-height: 36px;
+
+  padding:
+    7px 12px;
+
+  border:
+    1px solid #dfe3df;
+
+  border-radius: 10px;
+
+  background:
+    white;
+
+  color:
+    #626a64;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+
+.data-control-button:hover {
+  border-color:
+    #ccd4ce;
+
+  background:
+    #f7f9f7;
+
+  color:
+    #303732;
+}
+
+
+.data-control-button:active {
+  transform:
+    scale(0.97);
+}
+
+
+/* =========================================================
+   HIDDEN BACKUP FILE INPUT
+========================================================= */
+
+.backup-file-input {
+  display: none;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media
+(max-width: 600px) {
+
+  .import-export-controls {
+    justify-content:
+      flex-start;
+
+    margin-top:
+      -10px;
+  }
+
+
+  .data-control-button {
+    flex: 1;
+
+    min-height:
+      39px;
+  }
+
+}

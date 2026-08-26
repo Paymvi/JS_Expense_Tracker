@@ -7,10 +7,15 @@ import {
   parseExpenseDate,
 } from "../utils/expenseHelpers";
 
+import ImportExportControls
+  from "../components/ImportExportControls";
+
 
 export default function TransactionsPage({
   expenses,
   onEditExpense,
+  onExportExpenses,
+  onImportExpenses,
 }) {
 
   // ======================================================
@@ -187,6 +192,17 @@ export default function TransactionsPage({
 
         </header>
 
+        {/* IMPORT / EXPORT */}
+        <ImportExportControls
+          onExport={
+            onExportExpenses
+          }
+
+          onImport={
+            onImportExpenses
+          }
+        />
+
 
         <div className="transactions-empty">
 
@@ -248,6 +264,17 @@ export default function TransactionsPage({
         </div>
 
       </header>
+
+        {/* IMPORT / EXPORT */}
+        <ImportExportControls
+          onExport={
+            onExportExpenses
+          }
+
+          onImport={
+            onImportExpenses
+          }
+        />
 
 
       {/* TRANSACTION GROUPS */}

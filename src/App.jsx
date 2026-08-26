@@ -8,6 +8,12 @@ import {
   Routes,
 } from "react-router-dom";
 
+import {
+  downloadExpenseBackup,
+  readExpenseBackup,
+} from "./utils/backupHelpers";
+
+
 import "./App.css";
 
 import AddExpenseModal from "./components/AddExpenseModal";
@@ -221,6 +227,111 @@ function App() {
     );
   }
 
+  // ======================================================
+  // EXPORT BACKUP
+  // ======================================================
+
+  function exportExpenses() {
+
+    downloadExpenseBackup(
+      expenses
+    );
+
+  }
+
+  // ======================================================
+  // IMPORT BACKUP
+  // ======================================================
+
+  async function importExpenses(
+    file
+  ) {
+
+    try {
+
+      // Read + validate the file.
+      const importedExpenses =
+        await readExpenseBackup(
+          file
+        );
+
+
+      // --------------------------------------------------
+      // CONFIRM BEFORE REPLACING DATA
+      // --------------------------------------------------
+
+      const shouldImport =
+        window.confirm(
+          `This backup contains ${
+            importedExpenses.length
+          } ${
+            importedExpenses.length === 1
+              ? "transaction"
+              : "transactions"
+          }.\n\n` +
+          `Importing it will replace your current ${
+            expenses.length
+          } ${
+            expenses.length === 1
+              ? "transaction"
+              : "transactions"
+          }.\n\n` +
+          "Continue?"
+        );
+
+
+      if (!shouldImport) {
+        return;
+      }
+
+
+      // --------------------------------------------------
+      // REPLACE CURRENT EXPENSES
+      // --------------------------------------------------
+
+      setExpenses(
+        importedExpenses
+      );
+
+
+      // Make sure no old transaction is still being
+      // edited after changing the entire data set.
+      setEditingExpense(
+        null
+      );
+
+
+      setIsAddModalOpen(
+        false
+      );
+
+
+      window.alert(
+        `Imported ${
+          importedExpenses.length
+        } ${
+          importedExpenses.length === 1
+            ? "transaction"
+            : "transactions"
+        }.`
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not import backup:",
+        error
+      );
+
+
+      window.alert(
+        error.message ||
+        "Could not import this backup."
+      );
+
+    }
+
+  }
 
   // ======================================================
   // UI
@@ -248,9 +359,20 @@ function App() {
           path="/transactions"
           element={
             <TransactionsPage
-              expenses={expenses}
+              expenses={
+                expenses
+              }
+
               onEditExpense={
                 openEditExpense
+              }
+
+              onExportExpenses={
+                exportExpenses
+              }
+
+              onImportExpenses={
+                importExpenses
               }
             />
           }
