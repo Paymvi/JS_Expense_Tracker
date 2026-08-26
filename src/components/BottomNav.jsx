@@ -89,7 +89,67 @@ export default function BottomNav() {
 
       </NavLink>
 
+
+
+      {/* NOTES */}
+
+      <NavLink
+        to="/notes"
+        className={({ isActive }) =>
+          `bottom-nav-item ${
+            isActive
+              ? "active"
+              : ""
+          }`
+        }
+      >
+
+        <span className="bottom-nav-icon">
+
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+
+            <path
+              d="
+                M6 3h9l3 3v15H6V3Z
+              "
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="
+                M9 10h6
+                M9 14h6
+                M9 18h4
+              "
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+
+          </svg>
+
+        </span>
+
+
+        <span>
+          Notes
+        </span>
+
+      </NavLink>
+
     </nav>
+
+
+
+
+    
 
   );
 }

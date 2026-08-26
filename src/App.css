@@ -1192,7 +1192,7 @@ button {
   display: grid;
 
   grid-template-columns:
-    repeat(2, 1fr);
+    repeat(3, 1fr);
 
   padding:
     10px 14px
@@ -1933,6 +1933,1198 @@ button {
 
     min-height:
       39px;
+  }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   NOTES PAGE
+========================================================= */
+
+.notes-page {
+  padding-bottom:
+    130px;
+}
+
+
+/* =========================================================
+   NOTES PAGE HEADER
+========================================================= */
+
+.notes-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 18px;
+
+  margin-bottom: 22px;
+}
+
+
+.notes-page-header h1 {
+  margin:
+    2px 0 0;
+
+  color:
+    #171d19;
+
+  font-size:
+    28px;
+
+  letter-spacing:
+    -0.04em;
+}
+
+
+.notes-count {
+  padding:
+    7px 10px;
+
+  border-radius:
+    999px;
+
+  background:
+    #e8ebe8;
+
+  color:
+    #606862;
+
+  font-size:
+    12px;
+
+  font-weight:
+    600;
+
+  white-space:
+    nowrap;
+}
+
+
+/* =========================================================
+   NOTES TOOLS
+========================================================= */
+
+.notes-tools-row {
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  margin-bottom:
+    27px;
+}
+
+
+.notes-search {
+  flex: 1;
+
+  min-width: 0;
+}
+
+
+.notes-search-input-wrap {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+}
+
+
+.notes-search-icon {
+  position: absolute;
+
+  left: 13px;
+
+  width: 18px;
+  height: 18px;
+
+  color:
+    #89918b;
+
+  pointer-events:
+    none;
+}
+
+
+.notes-search-input {
+  width: 100%;
+
+  min-height:
+    43px;
+
+  padding:
+    10px 38px
+    10px 40px;
+
+  border:
+    1px solid
+    #dfe3df;
+
+  border-radius:
+    13px;
+
+  outline: none;
+
+  background:
+    white;
+
+  color:
+    #252b27;
+
+  font-size:
+    13px;
+
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+
+.notes-search-input:focus {
+  border-color:
+    #267852;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(38, 120, 82, 0.1);
+}
+
+
+.notes-search-input::placeholder {
+  color:
+    #9ca39e;
+}
+
+
+.notes-search-clear {
+  position: absolute;
+
+  right: 9px;
+
+  width: 27px;
+  height: 27px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border: 0;
+
+  border-radius:
+    50%;
+
+  background:
+    transparent;
+
+  color:
+    #8a928c;
+
+  font-size:
+    20px;
+
+  line-height:
+    1;
+}
+
+
+/* =========================================================
+   NOTES IMPORT / EXPORT
+========================================================= */
+
+.notes-backup-actions {
+  display: flex;
+
+  gap: 6px;
+
+  flex-shrink:
+    0;
+}
+
+
+.notes-tool-button {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border:
+    1px solid
+    #dfe3df;
+
+  border-radius:
+    12px;
+
+  background:
+    white;
+
+  color:
+    #626a64;
+
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+
+.notes-tool-button:hover {
+  background:
+    #f4f6f4;
+
+  color:
+    #303732;
+}
+
+
+.notes-tool-button:active {
+  transform:
+    scale(0.95);
+}
+
+
+.notes-tool-button svg {
+  width: 19px;
+  height: 19px;
+}
+
+
+/* =========================================================
+   NOTES TOP ROW
+========================================================= */
+
+.notes-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom:
+    13px;
+}
+
+
+.notes-section-heading h2 {
+  margin: 0;
+
+  color:
+    #252b27;
+
+  font-size:
+    18px;
+
+  letter-spacing:
+    -0.02em;
+}
+
+
+/* =========================================================
+   ADD NOTE
+========================================================= */
+
+.add-note-button {
+  min-height:
+    38px;
+
+  padding:
+    8px 13px;
+
+  border: 0;
+
+  border-radius:
+    11px;
+
+  background:
+    #19271f;
+
+  color:
+    white;
+
+  font-size:
+    12px;
+
+  font-weight:
+    700;
+
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+
+.add-note-button:hover {
+  background:
+    #24372c;
+}
+
+
+.add-note-button:active {
+  transform:
+    scale(0.96);
+}
+
+
+/* =========================================================
+   NOTES STACK
+========================================================= */
+
+.notes-stack {
+  display: grid;
+
+  gap: 11px;
+}
+
+
+/* =========================================================
+   NOTE CARD
+========================================================= */
+
+.note-card {
+  position: relative;
+
+  overflow: visible;
+
+  border:
+    1px solid
+    #e3e6e3;
+
+  border-radius:
+    17px;
+
+  background:
+    white;
+
+  box-shadow:
+    0 3px 12px
+    rgba(0, 0, 0, 0.025);
+
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+
+.note-card-open {
+  border-color:
+    #d6ddd7;
+
+  box-shadow:
+    0 7px 20px
+    rgba(0, 0, 0, 0.05);
+}
+
+
+/* =========================================================
+   NOTE HEADER
+========================================================= */
+
+.note-card-header {
+  position: relative;
+
+  display: flex;
+  align-items: stretch;
+
+  min-height:
+    72px;
+}
+
+
+.note-header-main {
+  flex: 1;
+
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  padding:
+    14px 8px
+    14px 17px;
+
+  border: 0;
+
+  border-radius:
+    17px;
+
+  background:
+    transparent;
+
+  color:
+    inherit;
+
+  text-align:
+    left;
+}
+
+
+.note-header-text {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 5px;
+}
+
+
+.note-title-row {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  min-width: 0;
+}
+
+
+.note-title-row h2 {
+  overflow: hidden;
+
+  margin: 0;
+
+  color:
+    #272d29;
+
+  font-size:
+    15px;
+
+  font-weight:
+    700;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+
+.note-header-text p {
+  margin: 0;
+
+  color:
+    #858d87;
+
+  font-size:
+    11px;
+}
+
+
+/* =========================================================
+   BOOKMARK / PIN ICON
+========================================================= */
+
+.note-pinned-icon {
+  flex-shrink: 0;
+
+  width: 15px;
+  height: 15px;
+
+  display: inline-flex;
+
+  color:
+    #267852;
+}
+
+
+.note-pinned-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* =========================================================
+   THREE DOT MENU
+========================================================= */
+
+.note-menu-container {
+  position: relative;
+
+  z-index: 10;
+
+  display: flex;
+  align-items: flex-start;
+
+  padding:
+    12px 10px
+    0 0;
+}
+
+
+.note-menu-button {
+  width: 34px;
+  height: 34px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border: 0;
+
+  border-radius:
+    50%;
+
+  background:
+    transparent;
+
+  color:
+    #7e867f;
+
+  font-size:
+    22px;
+
+  line-height:
+    1;
+}
+
+
+.note-menu-button:hover {
+  background:
+    #f0f2f0;
+}
+
+
+.note-menu-dropdown {
+  position: absolute;
+
+  top: 44px;
+  right: 9px;
+
+  z-index:
+    30;
+
+  width:
+    125px;
+
+  overflow: hidden;
+
+  padding:
+    5px;
+
+  border:
+    1px solid
+    #e1e4e1;
+
+  border-radius:
+    12px;
+
+  background:
+    white;
+
+  box-shadow:
+    0 10px 28px
+    rgba(0, 0, 0, 0.12);
+}
+
+
+.note-menu-item {
+  width: 100%;
+
+  display: block;
+
+  padding:
+    9px 10px;
+
+  border: 0;
+
+  border-radius:
+    8px;
+
+  background:
+    transparent;
+
+  color:
+    #39403b;
+
+  font-size:
+    12px;
+
+  font-weight:
+    600;
+
+  text-align:
+    left;
+}
+
+
+.note-menu-item:hover {
+  background:
+    #f2f4f2;
+}
+
+
+.note-menu-delete {
+  color:
+    #c44343;
+}
+
+
+.note-menu-delete:hover {
+  background:
+    #fff1f1;
+}
+
+
+/* =========================================================
+   EXPANDED NOTE BODY
+========================================================= */
+
+.note-card-body {
+  padding:
+    0 17px
+    18px;
+
+  border-top:
+    1px solid
+    #edf0ed;
+}
+
+
+.note-editor-fields {
+  display: grid;
+
+  gap: 13px;
+
+  padding-top:
+    17px;
+}
+
+
+/* =========================================================
+   NOTE TITLE INPUT
+========================================================= */
+
+.note-title-input {
+  width: 100%;
+
+  padding:
+    10px 11px;
+
+  border:
+    1px solid
+    #dfe3df;
+
+  border-radius:
+    11px;
+
+  outline:
+    none;
+
+  background:
+    #fafbfa;
+
+  color:
+    #252b27;
+
+  font-size:
+    14px;
+
+  font-weight:
+    700;
+}
+
+
+.note-title-input:focus {
+  border-color:
+    #267852;
+
+  background:
+    white;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(38, 120, 82, 0.09);
+}
+
+
+/* =========================================================
+   DATE + FONT SIZE
+========================================================= */
+
+.date-font-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+}
+
+
+.note-date-input {
+  min-height:
+    39px;
+
+  padding:
+    7px 10px;
+
+  border:
+    1px solid
+    #dfe3df;
+
+  border-radius:
+    10px;
+
+  outline:
+    none;
+
+  background:
+    #fafbfa;
+
+  color:
+    #515952;
+
+  font-size:
+    12px;
+}
+
+
+.inline-font-controls {
+  display: flex;
+  align-items: center;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    #dfe3df;
+
+  border-radius:
+    10px;
+
+  background:
+    white;
+}
+
+
+.inline-font-controls button {
+  min-width:
+    40px;
+  height:
+    37px;
+
+  padding:
+    0 8px;
+
+  border: 0;
+
+  background:
+    transparent;
+
+  color:
+    #4c554e;
+
+  font-size:
+    11px;
+
+  font-weight:
+    700;
+}
+
+
+.inline-font-controls button:hover {
+  background:
+    #f1f4f1;
+}
+
+
+.inline-font-controls span {
+  min-width:
+    31px;
+
+  color:
+    #89908b;
+
+  font-size:
+    10px;
+
+  text-align:
+    center;
+}
+
+
+/* =========================================================
+   NOTE TEXT
+========================================================= */
+
+.note-textarea {
+  width: 100%;
+  min-height:
+    230px;
+
+  resize:
+    vertical;
+
+  padding:
+    13px;
+
+  border:
+    1px solid
+    #dfe3df;
+
+  border-radius:
+    12px;
+
+  outline:
+    none;
+
+  background:
+    #fafbfa;
+
+  color:
+    #292f2b;
+
+  font-family:
+    inherit;
+
+  line-height:
+    1.65;
+
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+
+.note-textarea:focus {
+  border-color:
+    #267852;
+
+  background:
+    white;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(38, 120, 82, 0.09);
+}
+
+
+/* =========================================================
+   EMPTY NOTES
+========================================================= */
+
+.empty-notes {
+  min-height:
+    350px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding:
+    45px 25px;
+
+  text-align:
+    center;
+}
+
+
+.empty-notes-icon {
+  width: 58px;
+  height: 58px;
+
+  display: grid;
+  place-items: center;
+
+  margin-bottom:
+    16px;
+
+  border-radius:
+    50%;
+
+  background:
+    #e8ebe8;
+
+  color:
+    #5f6961;
+}
+
+
+.empty-notes-icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+
+.empty-notes h2 {
+  margin:
+    0 0 7px;
+
+  color:
+    #2f3631;
+
+  font-size:
+    18px;
+}
+
+
+.empty-notes p {
+  max-width:
+    330px;
+
+  margin:
+    0 0 18px;
+
+  color:
+    #7c847e;
+
+  font-size:
+    13px;
+
+  line-height:
+    1.55;
+}
+
+
+.empty-notes > button {
+  padding:
+    9px 13px;
+
+  border: 0;
+
+  border-radius:
+    11px;
+
+  background:
+    #19271f;
+
+  color:
+    white;
+
+  font-size:
+    12px;
+
+  font-weight:
+    700;
+}
+
+
+/* =========================================================
+   SEARCH RESULTS
+========================================================= */
+
+.notes-search-results {
+  display: grid;
+
+  gap: 9px;
+}
+
+
+.notes-search-results-header {
+  padding:
+    0 4px 5px;
+
+  color:
+    #818983;
+
+  font-size:
+    11px;
+
+  font-weight:
+    600;
+}
+
+
+.notes-search-result {
+  width: 100%;
+
+  padding:
+    15px 17px;
+
+  border:
+    1px solid
+    #e3e6e3;
+
+  border-radius:
+    15px;
+
+  background:
+    white;
+
+  color:
+    inherit;
+
+  text-align:
+    left;
+
+  box-shadow:
+    0 3px 12px
+    rgba(0, 0, 0, 0.02);
+}
+
+
+.notes-search-result:hover {
+  background:
+    #fafbfa;
+}
+
+
+.notes-search-result-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 18px;
+}
+
+
+.notes-search-result h2 {
+  margin: 0;
+
+  color:
+    #2b312d;
+
+  font-size:
+    14px;
+}
+
+
+.notes-search-result p {
+  margin:
+    4px 0 0;
+
+  color:
+    #888f8a;
+
+  font-size:
+    11px;
+}
+
+
+.notes-search-result-top > span {
+  color:
+    #949b96;
+
+  font-size:
+    21px;
+}
+
+
+.notes-search-preview {
+  margin-top:
+    11px !important;
+
+  color:
+    #676f69 !important;
+
+  font-size:
+    12px !important;
+
+  line-height:
+    1.5;
+}
+
+
+.notes-search-empty {
+  padding:
+    60px 20px;
+
+  text-align:
+    center;
+}
+
+
+.notes-search-empty h2 {
+  margin:
+    0 0 6px;
+
+  font-size:
+    17px;
+}
+
+
+.notes-search-empty p {
+  margin: 0;
+
+  color:
+    #838b85;
+
+  font-size:
+    12px;
+}
+
+
+/* =========================================================
+   NOTES MOBILE
+========================================================= */
+
+@media
+(max-width: 600px) {
+
+  .notes-page-header {
+    margin-bottom:
+      20px;
+  }
+
+
+  .notes-tools-row {
+    gap: 7px;
+
+    margin-bottom:
+      23px;
+  }
+
+
+  .notes-tool-button {
+    width: 40px;
+    height: 40px;
+  }
+
+
+  .notes-search-input {
+    min-height:
+      41px;
+  }
+
+
+  .date-font-row {
+    align-items:
+      stretch;
+
+    flex-direction:
+      column;
+  }
+
+
+  .note-date-input {
+    width: 100%;
+  }
+
+
+  .inline-font-controls {
+    width:
+      fit-content;
+  }
+
+
+  .note-textarea {
+    min-height:
+      260px;
   }
 
 }

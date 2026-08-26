@@ -6,6 +6,7 @@ import {
 import {
   Route,
   Routes,
+  useLocation,
 } from "react-router-dom";
 
 import {
@@ -21,6 +22,7 @@ import BottomNav from "./components/BottomNav";
 
 import OverviewPage from "./pages/OverviewPage";
 import TransactionsPage from "./pages/TransactionsPage";
+import NotesPage from "./pages/NotesPage";
 
 
 const STORAGE_KEY =
@@ -28,6 +30,14 @@ const STORAGE_KEY =
 
 
 function App() {
+
+  const location =
+    useLocation();
+
+
+  const isNotesPage =
+    location.pathname ===
+    "/notes";
 
   // ======================================================
   // EXPENSE DATA
@@ -378,21 +388,32 @@ function App() {
           }
         />
 
+        <Route
+          path="/notes"
+          element={
+            <NotesPage />
+          }
+        />
+
       </Routes>
 
 
       {/* ADD EXPENSE BUTTON */}
 
-      <button
-        type="button"
-        className="floating-add-button"
-        onClick={
-          openAddExpense
-        }
-        aria-label="Add expense"
-      >
-        +
-      </button>
+      {!isNotesPage && (
+
+        <button
+          type="button"
+          className="floating-add-button"
+          onClick={
+            openAddExpense
+          }
+          aria-label="Add expense"
+        >
+          +
+        </button>
+
+      )}
 
 
       {/* BOTTOM NAVIGATION */}
