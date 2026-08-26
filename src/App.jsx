@@ -77,6 +77,11 @@ function App() {
     setIsAddModalOpen,
   ] = useState(false);
 
+  const [
+    editingExpense,
+    setEditingExpense,
+  ] = useState(null);
+
 
   // ======================================================
   // SAVE EXPENSES
@@ -127,6 +132,95 @@ function App() {
 
   }
 
+  function openAddExpense() {
+
+    // Make absolutely sure we're not
+    // carrying over an expense from edit mode.
+    setEditingExpense(null);
+
+    setIsAddModalOpen(true);
+  }
+
+  function openEditExpense(
+    expense
+  ) {
+
+    setEditingExpense(
+      expense
+    );
+
+    setIsAddModalOpen(
+      true
+    );
+  }
+
+  function closeExpenseModal() {
+
+    setIsAddModalOpen(false);
+
+    setEditingExpense(null);
+  }
+
+
+  function updateExpense(
+    expenseId,
+    changes
+  ) {
+
+    setExpenses(
+      (previousExpenses) => {
+
+        return previousExpenses.map(
+          (expense) => {
+
+            // Not the transaction we're editing?
+            // Leave it exactly as it is.
+            if (
+              expense.id !==
+              expenseId
+            ) {
+              return expense;
+            }
+
+
+            // Found it.
+            // Keep the old information,
+            // then overwrite the changed fields.
+            return {
+
+              ...expense,
+
+              ...changes,
+
+              updatedAt:
+                new Date().toISOString(),
+
+            };
+
+          }
+        );
+
+      }
+    );
+  }
+
+  function deleteExpense(
+    expenseId
+  ) {
+
+    setExpenses(
+      (previousExpenses) => {
+
+        return previousExpenses.filter(
+          (expense) =>
+            expense.id !==
+            expenseId
+        );
+
+      }
+    );
+  }
+
 
   // ======================================================
   // UI
@@ -155,6 +249,9 @@ function App() {
           element={
             <TransactionsPage
               expenses={expenses}
+              onEditExpense={
+                openEditExpense
+              }
             />
           }
         />
@@ -167,13 +264,9 @@ function App() {
       <button
         type="button"
         className="floating-add-button"
-        onClick={() => {
-
-          setIsAddModalOpen(
-            true
-          );
-
-        }}
+        onClick={
+          openAddExpense
+        }
         aria-label="Add expense"
       >
         +
@@ -191,15 +284,25 @@ function App() {
         isOpen={
           isAddModalOpen
         }
-        onClose={() => {
 
-          setIsAddModalOpen(
-            false
-          );
+        onClose={
+          closeExpenseModal
+        }
 
-        }}
         onAddExpense={
           addExpense
+        }
+
+        editingExpense={
+          editingExpense
+        }
+
+        onUpdateExpense={
+          updateExpense
+        }
+
+        onDeleteExpense={
+          deleteExpense
         }
       />
 

@@ -10,6 +10,7 @@ import {
 
 export default function TransactionsPage({
   expenses,
+  onEditExpense,
 }) {
 
   // ======================================================
@@ -292,6 +293,9 @@ export default function TransactionsPage({
                       type="button"
                       className="transaction-row"
                       key={expense.id}
+                      onClick={() => {
+                        onEditExpense(expense);
+                      }}
                     >
 
                       {/* LEFT SIDE */}

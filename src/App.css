@@ -1341,3 +1341,112 @@ button {
   }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   EDIT EXPENSE MODAL
+========================================================= */
+
+
+/* When editing, we have:
+   Delete | Cancel | Save changes
+*/
+
+.modal-actions.modal-actions-edit {
+  grid-template-columns:
+    auto 1fr 1.4fr;
+}
+
+
+/* =========================================================
+   DELETE BUTTON
+========================================================= */
+
+.danger-button {
+  min-height: 46px;
+
+  padding:
+    0 15px;
+
+  border:
+    1px solid
+    #efcaca;
+
+  border-radius: 13px;
+
+  background:
+    #fff7f7;
+
+  color:
+    #c43d3d;
+
+  font-weight: 700;
+
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+
+.danger-button:hover {
+  border-color:
+    #e4aaaa;
+
+  background:
+    #fff0f0;
+}
+
+
+.danger-button:active {
+  transform:
+    scale(0.96);
+}
+
+
+/* =========================================================
+   MOBILE EDIT BUTTONS
+========================================================= */
+
+@media
+(max-width: 480px) {
+
+  .modal-actions.modal-actions-edit {
+    grid-template-columns:
+      1fr 1fr;
+  }
+
+
+  /*
+    Put delete on its own first row.
+
+    Delete
+    Cancel | Save
+  */
+
+  .modal-actions-edit
+  .danger-button {
+    grid-column:
+      1 / -1;
+  }
+
+}

@@ -12,7 +12,14 @@ import {
 export default function AddExpenseModal({
   isOpen,
   onClose,
+
+  // Adding
   onAddExpense,
+
+  // Editing / deleting
+  editingExpense,
+  onUpdateExpense,
+  onDeleteExpense,
 }) {
 
   const [amount, setAmount] =
@@ -33,7 +40,15 @@ export default function AddExpenseModal({
 
 
   // ======================================================
-  // RESET WHEN MODAL OPENS
+  // ARE WE ADDING OR EDITING?
+  // ======================================================
+
+  const isEditing =
+    Boolean(editingExpense);
+
+
+  // ======================================================
+  // LOAD FORM VALUES
   // ======================================================
 
   useEffect(() => {
@@ -42,6 +57,39 @@ export default function AddExpenseModal({
       return;
     }
 
+
+    // -----------------------------------------------
+    // EDIT EXISTING EXPENSE
+    // -----------------------------------------------
+
+    if (editingExpense) {
+
+      setAmount(
+        String(
+          editingExpense.amount ?? ""
+        )
+      );
+
+      setDescription(
+        editingExpense.description || ""
+      );
+
+      setCategory(
+        editingExpense.category || "Other"
+      );
+
+      setDate(
+        editingExpense.date ||
+          toDateInputValue()
+      );
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // ADD NEW EXPENSE
+    // -----------------------------------------------
 
     setAmount("");
 
@@ -53,7 +101,10 @@ export default function AddExpenseModal({
       toDateInputValue()
     );
 
-  }, [isOpen]);
+  }, [
+    isOpen,
+    editingExpense,
+  ]);
 
 
   // ======================================================
@@ -70,8 +121,7 @@ export default function AddExpenseModal({
     function handleKeyDown(event) {
 
       if (
-        event.key ===
-        "Escape"
+        event.key === "Escape"
       ) {
         onClose();
       }
@@ -97,14 +147,14 @@ export default function AddExpenseModal({
   }, [isOpen, onClose]);
 
 
-  // Don't render anything while closed.
+  // Don't render modal while closed.
   if (!isOpen) {
     return null;
   }
 
 
   // ======================================================
-  // ADD EXPENSE
+  // SUBMIT
   // ======================================================
 
   function handleSubmit(event) {
@@ -124,7 +174,8 @@ export default function AddExpenseModal({
     }
 
 
-    onAddExpense({
+    const expenseData = {
+
       amount: numberAmount,
 
       description:
@@ -133,12 +184,76 @@ export default function AddExpenseModal({
       category,
 
       date,
-    });
+
+    };
+
+
+    // -----------------------------------------------
+    // EDIT
+    // -----------------------------------------------
+
+    if (isEditing) {
+
+      onUpdateExpense(
+        editingExpense.id,
+        expenseData
+      );
+
+      onClose();
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // ADD
+    // -----------------------------------------------
+
+    onAddExpense(
+      expenseData
+    );
+
+    onClose();
+  }
+
+
+  // ======================================================
+  // DELETE
+  // ======================================================
+
+  function handleDelete() {
+
+    if (!editingExpense) {
+      return;
+    }
+
+
+    const shouldDelete =
+      window.confirm(
+        `Delete ${
+          editingExpense.description ||
+          "this expense"
+        }?`
+      );
+
+
+    if (!shouldDelete) {
+      return;
+    }
+
+
+    onDeleteExpense(
+      editingExpense.id
+    );
 
 
     onClose();
   }
 
+
+  // ======================================================
+  // UI
+  // ======================================================
 
   return (
 
@@ -146,8 +261,8 @@ export default function AddExpenseModal({
       className="modal-backdrop"
       onMouseDown={(event) => {
 
-        // Only close if the actual
-        // dark backdrop is clicked.
+        // Only close if the user clicked
+        // the backdrop itself.
         if (
           event.target ===
           event.currentTarget
@@ -163,16 +278,29 @@ export default function AddExpenseModal({
         onSubmit={handleSubmit}
       >
 
+        {/* =================================================
+            HEADER
+        ================================================= */}
+
         <div className="modal-header">
 
           <div>
 
             <div className="modal-eyebrow">
-              New expense
+
+              {isEditing
+                ? "Transaction"
+                : "New expense"}
+
             </div>
 
+
             <h2>
-              What did you spend?
+
+              {isEditing
+                ? "Edit expense"
+                : "What did you spend?"}
+
             </h2>
 
           </div>
@@ -190,7 +318,9 @@ export default function AddExpenseModal({
         </div>
 
 
-        {/* AMOUNT */}
+        {/* =================================================
+            AMOUNT
+        ================================================= */}
 
         <label className="field-label">
           Amount
@@ -203,6 +333,7 @@ export default function AddExpenseModal({
             $
           </span>
 
+
           <input
             autoFocus
             type="number"
@@ -212,16 +343,20 @@ export default function AddExpenseModal({
             placeholder="0.00"
             value={amount}
             onChange={(event) => {
+
               setAmount(
                 event.target.value
               );
+
             }}
           />
 
         </div>
 
 
-        {/* DESCRIPTION */}
+        {/* =================================================
+            DESCRIPTION
+        ================================================= */}
 
         <label className="field-label">
           What was it?
@@ -234,14 +369,18 @@ export default function AddExpenseModal({
           placeholder="Chipotle, gas, groceries..."
           value={description}
           onChange={(event) => {
+
             setDescription(
               event.target.value
             );
+
           }}
         />
 
 
-        {/* CATEGORY TAGS */}
+        {/* =================================================
+            CATEGORY
+        ================================================= */}
 
         <label className="field-label">
           Category
@@ -265,9 +404,11 @@ export default function AddExpenseModal({
                   category === option
                 }
                 onClick={() => {
+
                   setCategory(
                     option
                   );
+
                 }}
               >
                 {option}
@@ -279,7 +420,9 @@ export default function AddExpenseModal({
         </div>
 
 
-        {/* DATE */}
+        {/* =================================================
+            DATE
+        ================================================= */}
 
         <label className="field-label">
           Date
@@ -291,16 +434,41 @@ export default function AddExpenseModal({
           type="date"
           value={date}
           onChange={(event) => {
+
             setDate(
               event.target.value
             );
+
           }}
         />
 
 
-        {/* BUTTONS */}
+        {/* =================================================
+            BUTTONS
+        ================================================= */}
 
-        <div className="modal-actions">
+        <div
+          className={`modal-actions ${
+            isEditing
+              ? "modal-actions-edit"
+              : ""
+          }`}
+        >
+
+          {/* Only show DELETE while editing */}
+
+          {isEditing && (
+
+            <button
+              type="button"
+              className="danger-button"
+              onClick={handleDelete}
+            >
+              Delete
+            </button>
+
+          )}
+
 
           <button
             type="button"
@@ -315,7 +483,11 @@ export default function AddExpenseModal({
             type="submit"
             className="primary-button"
           >
-            Add expense
+
+            {isEditing
+              ? "Save changes"
+              : "Add expense"}
+
           </button>
 
         </div>
@@ -323,5 +495,6 @@ export default function AddExpenseModal({
       </form>
 
     </div>
+
   );
 }
