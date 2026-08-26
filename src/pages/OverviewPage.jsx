@@ -2,10 +2,12 @@ import {
   useEffect,
   useMemo,
   useState,
+  
 } from "react";
 
 import MonthlySnapshot from "../components/MonthlySnapshot";
 import WeeklySpending from "../components/WeeklySpending";
+import MonthBreakdownModal from "../components/MonthBreakdownModal";
 
 import {
   buildMonthlySnapshot,
@@ -28,6 +30,11 @@ export default function OverviewPage({
     showTrends,
     setShowTrends,
   ] = useState(true);
+
+  const [
+    selectedMonth,
+    setSelectedMonth,
+  ] = useState(null);
 
 
   const [
@@ -185,11 +192,17 @@ export default function OverviewPage({
         monthlySnapshot={
           monthlySnapshot
         }
+
         showTrends={
           showTrends
         }
+
         setShowTrends={
           setShowTrends
+        }
+
+        onSelectMonth={
+          setSelectedMonth
         }
       />
 
@@ -204,6 +217,22 @@ export default function OverviewPage({
         onSelect={
           setSelectedWeekIndex
         }
+      />
+
+      <MonthBreakdownModal
+        month={
+          selectedMonth
+        }
+
+        expenses={
+          expenses
+        }
+
+        onClose={() => {
+          setSelectedMonth(
+            null
+          );
+        }}
       />
 
     </main>

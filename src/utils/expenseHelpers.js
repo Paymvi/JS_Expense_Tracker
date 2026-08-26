@@ -216,6 +216,15 @@ export function buildMonthlySnapshot(expenses, numberOfMonths = 3) {
 
       year: monthDate.getFullYear(),
 
+      // January = 0
+      // February = 1
+      // ...
+      // December = 11
+      //
+      // We keep this because it makes it much easier
+      // to find all expenses belonging to this month.
+      monthIndex: monthDate.getMonth(),
+
       total,
 
       transactionCount: monthExpenses.length,
@@ -224,6 +233,8 @@ export function buildMonthlySnapshot(expenses, numberOfMonths = 3) {
 
       percentageChange,
     });
+
+
   }
 
   return snapshots;
@@ -302,4 +313,151 @@ export function buildWeeklySpending(expenses, numberOfWeeks = 12) {
   }
 
   return weeks;
+}
+
+
+
+
+
+// ---------------------------------------------------------
+// CATEGORY BREAKDOWN FOR A MONTH
+// ---------------------------------------------------------
+
+export function buildCategoryBreakdown(
+  expenses,
+  year,
+  monthIndex
+) {
+
+  // ======================================================
+  // FIND EXPENSES FROM THE SELECTED MONTH
+  // ======================================================
+
+  const monthExpenses =
+    expenses.filter((expense) => {
+
+      const date =
+        parseExpenseDate(
+          expense.date
+        );
+
+
+      if (!date) {
+        return false;
+      }
+
+
+      return (
+        date.getFullYear() === year &&
+        date.getMonth() === monthIndex
+      );
+
+    });
+
+
+  // ======================================================
+  // TOTAL SPENDING
+  // ======================================================
+
+  const totalSpent =
+    monthExpenses.reduce(
+      (total, expense) => {
+
+        return (
+          total +
+          Number(
+            expense.amount || 0
+          )
+        );
+
+      },
+      0
+    );
+
+
+  // ======================================================
+  // ADD UP EACH CATEGORY
+  // ======================================================
+
+  const categoryTotals = {};
+
+
+  monthExpenses.forEach(
+    (expense) => {
+
+      const category =
+        expense.category ||
+        "Other";
+
+
+      categoryTotals[category] =
+        (
+          categoryTotals[
+            category
+          ] || 0
+        ) +
+        Number(
+          expense.amount || 0
+        );
+
+    }
+  );
+
+
+  // ======================================================
+  // CONVERT OBJECT INTO ARRAY
+  // ======================================================
+
+  const categories =
+    Object.entries(
+      categoryTotals
+    )
+      .map(
+        ([category, amount]) => {
+
+          const percentage =
+            totalSpent > 0
+              ? (
+                  amount /
+                  totalSpent
+                ) * 100
+              : 0;
+
+
+          return {
+
+            category,
+
+            amount,
+
+            percentage,
+
+          };
+
+        }
+      )
+
+
+      // Highest spending category first.
+      .sort(
+        (a, b) =>
+          b.amount -
+          a.amount
+      );
+
+
+  // ======================================================
+  // RETURN EVERYTHING
+  // ======================================================
+
+  return {
+
+    totalSpent,
+
+    transactionCount:
+      monthExpenses.length,
+
+    categories,
+
+  };
 }

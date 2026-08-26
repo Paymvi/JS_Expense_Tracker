@@ -6,6 +6,7 @@ export default function MonthlySnapshot({
   monthlySnapshot,
   showTrends,
   setShowTrends,
+  onSelectMonth,
 }) {
   return (
     <section className="profile-section">
@@ -34,9 +35,13 @@ export default function MonthlySnapshot({
         {monthlySnapshot.map((month) => {
 
           return (
-            <article
+            <button
+              type="button"
               key={`${month.year}-${month.month}`}
-              className="month-card"
+              className="month-card month-card-clickable"
+              onClick={() => {
+                onSelectMonth(month);
+              }}
             >
 
               <div className="month-title">
@@ -108,7 +113,7 @@ export default function MonthlySnapshot({
 
               </div>
 
-            </article>
+            </button>
           );
 
         })}
