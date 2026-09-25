@@ -38,6 +38,11 @@ export default function AddExpenseModal({
       toDateInputValue()
     );
 
+  const [
+    covered,
+    setCovered,
+  ] = useState(false);
+
 
   // ======================================================
   // ARE WE ADDING OR EDITING?
@@ -83,6 +88,10 @@ export default function AddExpenseModal({
           toDateInputValue()
       );
 
+      setCovered(
+        editingExpense.covered === true
+      );
+
       return;
     }
 
@@ -100,6 +109,8 @@ export default function AddExpenseModal({
     setDate(
       toDateInputValue()
     );
+
+    setCovered(false);
 
   }, [
     isOpen,
@@ -184,6 +195,8 @@ export default function AddExpenseModal({
       category,
 
       date,
+
+      covered,
 
     };
 
@@ -418,6 +431,60 @@ export default function AddExpenseModal({
           )}
 
         </div>
+
+
+        {/* =================================================
+            COVERED
+        ================================================= */}
+
+        <label className="field-label">
+          Coverage
+        </label>
+
+
+        <button
+          type="button"
+          className={`covered-option-button ${
+            covered
+              ? "active"
+              : ""
+          }`}
+          aria-pressed={
+            covered
+          }
+          onClick={() => {
+
+            setCovered(
+              (previous) =>
+                !previous
+            );
+
+          }}
+        >
+
+          <span className="covered-option-check">
+
+            {covered
+              ? "✓"
+              : ""}
+
+          </span>
+
+
+          <span className="covered-option-copy">
+
+            <strong>
+              Covered
+            </strong>
+            
+            {/* 
+            <small>
+              Mark this if someone else paid for it or it will be reimbursed.
+            </small> */}
+
+          </span>
+
+        </button>
 
 
         {/* =================================================

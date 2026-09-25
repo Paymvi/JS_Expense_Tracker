@@ -28,6 +28,9 @@ import NotesPage from "./pages/NotesPage";
 const STORAGE_KEY =
   "expense-tracker-expenses-v1";
 
+const COVERED_FILTER_STORAGE_KEY =
+  "expense-tracker-include-covered-v1";
+
 
 function App() {
 
@@ -85,6 +88,53 @@ function App() {
 
 
   // ======================================================
+  // COVERED EXPENSE FILTER
+  // ======================================================
+
+  const [
+    includeCovered,
+    setIncludeCovered,
+  ] = useState(() => {
+
+    try {
+
+      return (
+        localStorage.getItem(
+          COVERED_FILTER_STORAGE_KEY
+        ) === "true"
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not load covered filter:",
+        error
+      );
+
+      return false;
+
+    }
+
+  });
+
+
+  const overviewExpenses =
+    includeCovered
+      ? expenses
+      : expenses.filter(
+          (expense) =>
+            expense.covered !== true
+        );
+
+
+  const coveredExpenseCount =
+    expenses.filter(
+      (expense) =>
+        expense.covered === true
+    ).length;
+
+
+  // ======================================================
   // ADD MODAL
   // ======================================================
 
@@ -111,6 +161,20 @@ function App() {
     );
 
   }, [expenses]);
+
+
+  // ======================================================
+  // SAVE COVERED FILTER PREFERENCE
+  // ======================================================
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      COVERED_FILTER_STORAGE_KEY,
+      String(includeCovered)
+    );
+
+  }, [includeCovered]);
 
 
   // ======================================================
@@ -358,9 +422,80 @@ function App() {
         <Route
           path="/"
           element={
-            <OverviewPage
-              expenses={expenses}
-            />
+            <div className="overview-route">
+
+              {/* =========================================
+                  COVERED EXPENSE FILTER
+              ========================================= */}
+
+              <div className="covered-filter-shell">
+
+                <div className="covered-filter-control">
+
+                  <div className="covered-filter-copy">
+
+                    <div className="covered-filter-title">
+                      Include covered
+                    </div>
+
+                    <div className="covered-filter-description">
+
+                      {coveredExpenseCount === 0
+                        ? "No covered expenses yet"
+                        : includeCovered
+                        ? `${coveredExpenseCount} covered ${
+                            coveredExpenseCount === 1
+                              ? "expense is"
+                              : "expenses are"
+                          } included`
+                        : `${coveredExpenseCount} covered ${
+                            coveredExpenseCount === 1
+                              ? "expense is"
+                              : "expenses are"
+                          } excluded`}
+
+                    </div>
+
+                  </div>
+
+
+                  <button
+                    type="button"
+                    className={`covered-switch ${
+                      includeCovered
+                        ? "active"
+                        : ""
+                    }`}
+                    onClick={() => {
+
+                      setIncludeCovered(
+                        (previous) =>
+                          !previous
+                      );
+
+                    }}
+                    aria-label="Include covered expenses in overview totals"
+                    aria-pressed={
+                      includeCovered
+                    }
+                  >
+
+                    <span className="covered-switch-knob" />
+
+                  </button>
+
+                </div>
+
+              </div>
+
+
+              <OverviewPage
+                expenses={
+                  overviewExpenses
+                }
+              />
+
+            </div>
           }
         />
 
@@ -387,6 +522,7 @@ function App() {
             />
           }
         />
+
 
         <Route
           path="/notes"
