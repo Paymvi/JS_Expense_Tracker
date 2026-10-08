@@ -23,6 +23,7 @@ import BottomNav from "./components/BottomNav";
 import OverviewPage from "./pages/OverviewPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import NotesPage from "./pages/NotesPage";
+import VisualizerPage from "./pages/VisualizerPage";
 
 
 const STORAGE_KEY =
@@ -38,9 +39,9 @@ function App() {
     useLocation();
 
 
-  const isNotesPage =
-    location.pathname ===
-    "/notes";
+  const shouldHideAddButton =
+    location.pathname === "/notes" ||
+    location.pathname === "/visualizer";
 
   // ======================================================
   // EXPENSE DATA
@@ -523,6 +524,13 @@ function App() {
           }
         />
 
+        <Route
+          path="/visualizer"
+          element={
+            <VisualizerPage />
+          }
+        />  
+
 
         <Route
           path="/notes"
@@ -536,7 +544,7 @@ function App() {
 
       {/* ADD EXPENSE BUTTON */}
 
-      {!isNotesPage && (
+      {!shouldHideAddButton && (
 
         <button
           type="button"

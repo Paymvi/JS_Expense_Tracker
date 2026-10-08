@@ -48,6 +48,7 @@ export default function BottomNav() {
       </NavLink>
 
 
+
       {/* TRANSACTIONS */}
 
       <NavLink
@@ -85,6 +86,69 @@ export default function BottomNav() {
 
         <span>
           Transactions
+        </span>
+
+      </NavLink>
+
+
+
+      {/* VISUALIZER */}
+
+      <NavLink
+        to="/visualizer"
+        className={({ isActive }) =>
+          `bottom-nav-item ${
+            isActive
+              ? "active"
+              : ""
+          }`
+        }
+      >
+
+        <span className="bottom-nav-icon">
+
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+
+            <rect
+              x="3"
+              y="6"
+              width="18"
+              height="12"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+
+            <circle
+              cx="12"
+              cy="12"
+              r="2.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+
+            <path
+              d="
+                M7 9h.01
+                M17 15h.01
+              "
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+
+          </svg>
+
+        </span>
+
+
+        <span>
+          Visualizer
         </span>
 
       </NavLink>
@@ -145,11 +209,6 @@ export default function BottomNav() {
       </NavLink>
 
     </nav>
-
-
-
-
-    
 
   );
 }
