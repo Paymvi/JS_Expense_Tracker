@@ -1,8 +1,8 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
-
 
 
 const BILL_OPTIONS = [
@@ -12,7 +12,17 @@ const BILL_OPTIONS = [
 ];
 
 
-export default function VisualizerPage() {
+const HOURLY_RATE_STORAGE_KEY =
+  "expense-tracker-hourly-rate-v1";
+
+
+export default function VisualizerPage({
+  expenses = [],
+}) {
+
+  // ======================================================
+  // MONEY VISUALIZER STATE
+  // ======================================================
 
   const [
     amount,
@@ -27,60 +37,429 @@ export default function VisualizerPage() {
 
 
 
+  // ======================================================
+  // WORK HOURS STATE
+  // ======================================================
+
+  const [
+    hourlyRate,
+    setHourlyRate,
+  ] = useState(() => {
+
+    try {
+
+      return (
+        localStorage.getItem(
+          HOURLY_RATE_STORAGE_KEY
+        ) || ""
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not load hourly rate:",
+        error
+      );
+
+
+      return "";
+
+    }
+
+  });
+
+
+
+  // ======================================================
+  // WHAT IF STATE
+  // ======================================================
+
+  const [
+    purchaseName,
+    setPurchaseName,
+  ] = useState("");
+
+
+  const [
+    purchaseAmount,
+    setPurchaseAmount,
+  ] = useState("");
+
+
+  const [
+    simulationMode,
+    setSimulationMode,
+  ] = useState("without");
+
+
+
+  // ======================================================
+  // NUMERIC VALUES
+  // ======================================================
+
   const numericAmount =
     Number.parseFloat(amount) || 0;
 
 
+  const numericPurchaseAmount =
+    Number.parseFloat(
+      purchaseAmount
+    ) || 0;
 
-  const calculation = useMemo(() => {
 
-    if (
-      numericAmount <= 0 ||
-      !selectedBill
-    ) {
+  const numericHourlyRate =
+    Number.parseFloat(
+      hourlyRate
+    ) || 0;
 
-      return {
-        billCount: 0,
-        remainder: 0,
-      };
+
+
+  // ======================================================
+  // SAVE HOURLY RATE
+  // ======================================================
+
+  useEffect(() => {
+
+    try {
+
+      localStorage.setItem(
+        HOURLY_RATE_STORAGE_KEY,
+        hourlyRate
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Could not save hourly rate:",
+        error
+      );
 
     }
 
+  }, [hourlyRate]);
 
-    const cents =
-      Math.round(
-        numericAmount * 100
+
+
+  // ======================================================
+  // MONEY VISUALIZER BILL CALCULATION
+  // ======================================================
+
+  const calculation =
+    useMemo(() => {
+
+      if (
+        numericAmount <= 0 ||
+        !selectedBill
+      ) {
+
+        return {
+          billCount: 0,
+          remainder: 0,
+        };
+
+      }
+
+
+      const cents =
+        Math.round(
+          numericAmount * 100
+        );
+
+
+      const billCents =
+        selectedBill * 100;
+
+
+      const billCount =
+        Math.floor(
+          cents / billCents
+        );
+
+
+      const remainder =
+        (
+          cents %
+          billCents
+        ) / 100;
+
+
+      return {
+        billCount,
+        remainder,
+      };
+
+    }, [
+      numericAmount,
+      selectedBill,
+    ]);
+
+
+
+  // ======================================================
+  // PURCHASE BILL CALCULATION
+  // ======================================================
+
+  const purchaseCalculation =
+    useMemo(() => {
+
+      if (
+        numericPurchaseAmount <= 0 ||
+        !selectedBill
+      ) {
+
+        return {
+          billCount: 0,
+          remainder: 0,
+        };
+
+      }
+
+
+      const cents =
+        Math.round(
+          numericPurchaseAmount * 100
+        );
+
+
+      const billCents =
+        selectedBill * 100;
+
+
+      const billCount =
+        Math.floor(
+          cents / billCents
+        );
+
+
+      const remainder =
+        (
+          cents %
+          billCents
+        ) / 100;
+
+
+      return {
+        billCount,
+        remainder,
+      };
+
+    }, [
+      numericPurchaseAmount,
+      selectedBill,
+    ]);
+
+
+
+  // ======================================================
+  // CURRENT MONTH SPENDING
+  // ======================================================
+
+  const monthlySpending =
+    useMemo(() => {
+
+      const now =
+        new Date();
+
+
+      const currentYear =
+        now.getFullYear();
+
+
+      const currentMonth =
+        now.getMonth();
+
+
+      return expenses.reduce(
+        (
+          total,
+          expense
+        ) => {
+
+          const rawDate =
+            expense.date ||
+            expense.transactionDate ||
+            expense.createdAt;
+
+
+          if (!rawDate) {
+
+            return total;
+
+          }
+
+
+          let expenseDate;
+
+
+          if (
+            typeof rawDate === "string" &&
+            /^\d{4}-\d{2}-\d{2}/.test(
+              rawDate
+            )
+          ) {
+
+            const [
+              year,
+              month,
+              day,
+            ] =
+              rawDate
+                .slice(0, 10)
+                .split("-")
+                .map(Number);
+
+
+            expenseDate =
+              new Date(
+                year,
+                month - 1,
+                day
+              );
+
+          } else {
+
+            expenseDate =
+              new Date(
+                rawDate
+              );
+
+          }
+
+
+          if (
+            Number.isNaN(
+              expenseDate.getTime()
+            )
+          ) {
+
+            return total;
+
+          }
+
+
+          const isCurrentMonth =
+            expenseDate.getFullYear() ===
+              currentYear &&
+            expenseDate.getMonth() ===
+              currentMonth;
+
+
+          if (!isCurrentMonth) {
+
+            return total;
+
+          }
+
+
+          const expenseAmount =
+            Number.parseFloat(
+              expense.amount
+            ) || 0;
+
+
+          return (
+            total +
+            expenseAmount
+          );
+
+        },
+        0
       );
 
-
-    const billCents =
-      selectedBill * 100;
+    }, [expenses]);
 
 
-    const billCount =
-      Math.floor(
-        cents / billCents
-      );
+
+  // ======================================================
+  // CURRENT MONTH AVERAGES
+  // ======================================================
+
+  const currentDayOfMonth =
+    new Date().getDate();
 
 
-    const remainder =
-      (
-        cents %
-        billCents
-      ) / 100;
+  const currentDailyAverage =
+    currentDayOfMonth > 0
+      ? monthlySpending /
+        currentDayOfMonth
+      : 0;
 
 
-    return {
-      billCount,
-      remainder,
-    };
 
-  }, [
-    numericAmount,
-    selectedBill,
-  ]);
+  // ======================================================
+  // PURCHASE SIMULATION
+  // ======================================================
+
+  const simulatedMonthlySpending =
+    monthlySpending +
+    numericPurchaseAmount;
 
 
+  const simulatedDailyAverage =
+    currentDayOfMonth > 0
+      ? simulatedMonthlySpending /
+        currentDayOfMonth
+      : 0;
+
+
+  const scenarioMonthlySpending =
+    simulationMode === "with"
+      ? simulatedMonthlySpending
+      : monthlySpending;
+
+
+  const scenarioDailyAverage =
+    simulationMode === "with"
+      ? simulatedDailyAverage
+      : currentDailyAverage;
+
+
+
+  // ======================================================
+  // WORK HOURS
+  // ======================================================
+
+  const workMinutes =
+    numericAmount > 0 &&
+    numericHourlyRate > 0
+      ? Math.round(
+          (
+            numericAmount /
+            numericHourlyRate
+          ) * 60
+        )
+      : 0;
+
+
+  const workDays =
+    workMinutes > 0
+      ? workMinutes /
+        60 /
+        8
+      : 0;
+
+
+
+  // ======================================================
+  // PURCHASE WORK HOURS
+  // ======================================================
+
+  const purchaseWorkMinutes =
+    numericPurchaseAmount > 0 &&
+    numericHourlyRate > 0
+      ? Math.round(
+          (
+            numericPurchaseAmount /
+            numericHourlyRate
+          ) * 60
+        )
+      : 0;
+
+
+
+  // ======================================================
+  // INPUT HANDLERS
+  // ======================================================
 
   function handleAmountChange(
     event
@@ -106,6 +485,58 @@ export default function VisualizerPage() {
   }
 
 
+  function handleHourlyRateChange(
+    event
+  ) {
+
+    const value =
+      event.target.value;
+
+
+    if (
+      value === "" ||
+      /^\d*\.?\d{0,2}$/.test(
+        value
+      )
+    ) {
+
+      setHourlyRate(
+        value
+      );
+
+    }
+
+  }
+
+
+  function handlePurchaseAmountChange(
+    event
+  ) {
+
+    const value =
+      event.target.value;
+
+
+    if (
+      value === "" ||
+      /^\d*\.?\d{0,2}$/.test(
+        value
+      )
+    ) {
+
+      setPurchaseAmount(
+        value
+      );
+
+    }
+
+  }
+
+
+
+  // ======================================================
+  // FORMAT MONEY
+  // ======================================================
 
   function formatMoney(
     value
@@ -125,12 +556,75 @@ export default function VisualizerPage() {
 
 
 
+  // ======================================================
+  // FORMAT WORK TIME
+  // ======================================================
+
+  function formatWorkTime(
+    minutes
+  ) {
+
+    if (minutes <= 0) {
+
+      return "—";
+
+    }
+
+
+    const hours =
+      Math.floor(
+        minutes / 60
+      );
+
+
+    const remainingMinutes =
+      minutes % 60;
+
+
+    if (hours === 0) {
+
+      return `${remainingMinutes} min`;
+
+    }
+
+
+    if (
+      remainingMinutes === 0
+    ) {
+
+      return `${
+        hours
+      } ${
+        hours === 1
+          ? "hr"
+          : "hrs"
+      }`;
+
+    }
+
+
+    return `${
+      hours
+    } ${
+      hours === 1
+        ? "hr"
+        : "hrs"
+    } ${remainingMinutes} min`;
+
+  }
+
+
+
+  // ======================================================
+  // UI
+  // ======================================================
+
   return (
 
     <main className="visualizer-page">
 
       {/* =========================================
-          HEADER
+          MONEY VISUALIZER
       ========================================= */}
 
       <section className="visualizer-header">
@@ -161,9 +655,7 @@ export default function VisualizerPage() {
 
 
 
-        {/* =========================================
-            AMOUNT INPUT
-        ========================================= */}
+        {/* AMOUNT INPUT */}
 
         <div className="visualizer-input-shell">
 
@@ -188,9 +680,7 @@ export default function VisualizerPage() {
 
 
 
-        {/* =========================================
-            BILL SELECTOR
-        ========================================= */}
+        {/* BILL SELECTOR */}
 
         <div className="visualizer-bill-selector">
 
@@ -249,7 +739,7 @@ export default function VisualizerPage() {
 
 
       {/* =========================================
-          EMPTY STATE
+          MONEY VISUALIZER EMPTY STATE
       ========================================= */}
 
       {numericAmount <= 0 && (
@@ -284,7 +774,7 @@ export default function VisualizerPage() {
 
 
       {/* =========================================
-          VISUALIZATION
+          MONEY VISUALIZATION RESULTS
       ========================================= */}
 
       {numericAmount > 0 && (
@@ -322,9 +812,9 @@ export default function VisualizerPage() {
 
               <span className="visualizer-summary-description">
 
-                ${
-                  selectedBill
-                } {
+                ${selectedBill}{" "}
+
+                {
                   calculation.billCount ===
                   1
                     ? "bill"
@@ -476,11 +966,8 @@ export default function VisualizerPage() {
 
               <p>
 
-                individual ${
-                  selectedBill
-                } bills make up
-
-                {" "}
+                individual ${selectedBill}
+                bills make up{" "}
 
                 <strong>
 
@@ -502,6 +989,625 @@ export default function VisualizerPage() {
         </section>
 
       )}
+
+
+
+      {/* =========================================
+          WORK HOURS
+      ========================================= */}
+
+      <section className="perspective-tool-section">
+
+        <div className="perspective-tool-heading">
+
+          <p className="perspective-tool-eyebrow">
+            Work Hours
+          </p>
+
+
+          <h2>
+            What did this money
+            cost you in time?
+          </h2>
+
+
+          <p>
+            Enter your approximate
+            after-tax hourly pay once.
+            Your rate will stay saved
+            on this device.
+          </p>
+
+        </div>
+
+
+        <div className="work-hours-card">
+
+          <div className="work-rate-row">
+
+            <div>
+
+              <span className="tool-field-label">
+                After-tax hourly pay
+              </span>
+
+
+              <p className="tool-field-help">
+                What actually reaches
+                your pocket per hour.
+              </p>
+
+            </div>
+
+
+            <div className="hourly-rate-input-shell">
+
+              <span>
+                $
+              </span>
+
+
+              <input
+                type="text"
+                inputMode="decimal"
+                value={hourlyRate}
+                onChange={
+                  handleHourlyRateChange
+                }
+                placeholder="18.00"
+                aria-label="After-tax hourly pay"
+              />
+
+
+              <span className="hourly-rate-suffix">
+                / hr
+              </span>
+
+            </div>
+
+          </div>
+
+
+
+          {numericAmount > 0 &&
+          numericHourlyRate > 0 ? (
+
+            <div className="work-hours-result">
+
+              <div className="work-hours-result-copy">
+
+                <span>
+
+                  {formatMoney(
+                    numericAmount
+                  )}
+
+                </span>
+
+
+                <strong>
+
+                  {formatWorkTime(
+                    workMinutes
+                  )}
+
+                </strong>
+
+
+                <p>
+                  of your working time
+                </p>
+
+              </div>
+
+
+              <div className="work-clock">
+
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="8"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+
+
+                  <path
+                    d="M12 7v5l3 2"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                </svg>
+
+              </div>
+
+            </div>
+
+          ) : (
+
+            <div className="work-hours-placeholder">
+
+              {numericAmount <= 0
+                ? "Enter an amount at the top to see its value in work time."
+                : "Enter your hourly pay to see how much work this amount represents."}
+
+            </div>
+
+          )}
+
+
+
+          {workMinutes > 0 && (
+
+            <div className="work-hours-details">
+
+              <div>
+
+                <span>
+                  Hourly pay
+                </span>
+
+
+                <strong>
+
+                  {formatMoney(
+                    numericHourlyRate
+                  )}
+
+                </strong>
+
+              </div>
+
+
+              <div>
+
+                <span>
+                  Work time
+                </span>
+
+
+                <strong>
+
+                  {formatWorkTime(
+                    workMinutes
+                  )}
+
+                </strong>
+
+              </div>
+
+
+              <div>
+
+                <span>
+                  8-hour workdays
+                </span>
+
+
+                <strong>
+                  {workDays.toFixed(1)}
+                </strong>
+
+              </div>
+
+            </div>
+
+          )}
+
+        </div>
+
+      </section>
+
+
+
+      {/* =========================================
+          WHAT IF PURCHASE SIMULATOR
+      ========================================= */}
+
+      <section className="perspective-tool-section">
+
+        <div className="perspective-tool-heading">
+
+          <p className="perspective-tool-eyebrow">
+            What If?
+          </p>
+
+
+          <h2>
+            See the purchase
+            before you make it.
+          </h2>
+
+
+          <p>
+            Temporarily place this
+            purchase into your month
+            and see how the numbers
+            change. Nothing here is
+            added to your transactions.
+          </p>
+
+        </div>
+
+
+        <div className="purchase-simulator">
+
+          {/* PURCHASE INFORMATION */}
+
+          <div className="purchase-simulator-top">
+
+            <label className="purchase-name-field">
+
+              <span>
+                What are you thinking
+                about buying?
+              </span>
+
+
+              <input
+                type="text"
+                value={purchaseName}
+                onChange={(event) =>
+                  setPurchaseName(
+                    event.target.value
+                  )
+                }
+                placeholder="Optional — e.g. Monitor"
+              />
+
+            </label>
+
+
+            <label className="purchase-amount-field">
+
+              <span>
+                Purchase price
+              </span>
+
+
+              <div className="purchase-amount-input-shell">
+
+                <span className="purchase-amount-dollar">
+                  $
+                </span>
+
+
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={purchaseAmount}
+                  onChange={
+                    handlePurchaseAmountChange
+                  }
+                  placeholder="0.00"
+                  aria-label="Hypothetical purchase price"
+                />
+
+              </div>
+
+            </label>
+
+          </div>
+
+
+
+          {/* WITHOUT / WITH PURCHASE */}
+
+          <div
+            className="simulation-toggle"
+            role="group"
+            aria-label="Purchase simulation view"
+          >
+
+            <button
+              type="button"
+              className={
+                simulationMode ===
+                "without"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                setSimulationMode(
+                  "without"
+                )
+              }
+              aria-pressed={
+                simulationMode ===
+                "without"
+              }
+            >
+
+              Without purchase
+
+            </button>
+
+
+            <button
+              type="button"
+              className={
+                simulationMode ===
+                "with"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                setSimulationMode(
+                  "with"
+                )
+              }
+              aria-pressed={
+                simulationMode ===
+                "with"
+              }
+            >
+
+              With purchase
+
+            </button>
+
+          </div>
+
+
+
+          {/* SIMULATION RESULTS */}
+
+          {numericPurchaseAmount > 0 ? (
+
+            <>
+
+              {/* MAIN RESULT */}
+
+              <div
+                className={
+                  `simulation-hero ${
+                    simulationMode ===
+                    "with"
+                      ? "simulation-hero-with"
+                      : ""
+                  }`
+                }
+              >
+
+                <span className="simulation-hero-label">
+
+                  {simulationMode === "with"
+                    ? `${
+                        purchaseName.trim() ||
+                        "This purchase"
+                      } included`
+                    : "Your current month"}
+
+                </span>
+
+
+                <strong>
+
+                  {formatMoney(
+                    scenarioMonthlySpending
+                  )}
+
+                </strong>
+
+
+                <span className="simulation-hero-subtitle">
+                  total spending this month
+                </span>
+
+              </div>
+
+
+
+              {/* COMPARISON CARDS */}
+
+              <div className="simulation-comparison-grid">
+
+                {/* MONTHLY SPENDING */}
+
+                <div className="simulation-comparison-card">
+
+                  <span>
+                    Monthly spending
+                  </span>
+
+
+                  <div className="simulation-arrow-values">
+
+                    <strong>
+
+                      {formatMoney(
+                        monthlySpending
+                      )}
+
+                    </strong>
+
+
+                    <span>
+                      →
+                    </span>
+
+
+                    <strong>
+
+                      {formatMoney(
+                        simulatedMonthlySpending
+                      )}
+
+                    </strong>
+
+                  </div>
+
+                </div>
+
+
+
+                {/* DAILY AVERAGE */}
+
+                <div className="simulation-comparison-card">
+
+                  <span>
+                    Average per day
+                  </span>
+
+
+                  <div className="simulation-arrow-values">
+
+                    <strong>
+
+                      {formatMoney(
+                        currentDailyAverage
+                      )}
+
+                    </strong>
+
+
+                    <span>
+                      →
+                    </span>
+
+
+                    <strong>
+
+                      {formatMoney(
+                        simulatedDailyAverage
+                      )}
+
+                    </strong>
+
+                  </div>
+
+                </div>
+
+
+
+                {/* CASH EQUIVALENT */}
+
+                <div className="simulation-comparison-card">
+
+                  <span>
+                    Cash equivalent
+                  </span>
+
+
+                  <strong className="simulation-single-value">
+
+                    {
+                      purchaseCalculation.billCount
+                    } × ${selectedBill}
+
+                  </strong>
+
+
+                  {purchaseCalculation.remainder > 0 && (
+
+                    <small>
+
+                      +{" "}
+
+                      {formatMoney(
+                        purchaseCalculation.remainder
+                      )}
+
+                    </small>
+
+                  )}
+
+                </div>
+
+
+
+                {/* WORK REQUIRED */}
+
+                <div className="simulation-comparison-card">
+
+                  <span>
+                    Work required
+                  </span>
+
+
+                  <strong className="simulation-single-value">
+
+                    {numericHourlyRate > 0
+                      ? formatWorkTime(
+                          purchaseWorkMinutes
+                        )
+                      : "Add hourly pay above"}
+
+                  </strong>
+
+                </div>
+
+              </div>
+
+
+
+              {/* CURRENTLY VIEWING */}
+
+              <div className="simulation-current-value">
+
+                <span>
+                  Currently viewing
+                </span>
+
+
+                <strong>
+
+                  {formatMoney(
+                    scenarioDailyAverage
+                  )}{" "}
+                  per day
+
+                </strong>
+
+              </div>
+
+
+
+              {/* DISCLAIMER */}
+
+              <p className="simulation-disclaimer">
+
+                This is only a simulation.
+                Switching to “With purchase”
+                does not save, add, or modify
+                any transaction.
+
+              </p>
+
+            </>
+
+          ) : (
+
+            <div className="simulation-empty">
+
+              <strong>
+                Enter a purchase amount above
+              </strong>
+
+
+              <p>
+                The simulator will compare
+                your real month with a version
+                where you made that purchase.
+              </p>
+
+            </div>
+
+          )}
+
+        </div>
+
+      </section>
 
     </main>
 

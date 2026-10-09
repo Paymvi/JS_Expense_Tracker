@@ -527,9 +527,11 @@ function App() {
         <Route
           path="/visualizer"
           element={
-            <VisualizerPage />
+            <VisualizerPage
+              expenses={expenses}
+            />
           }
-        />  
+        />
 
 
         <Route
