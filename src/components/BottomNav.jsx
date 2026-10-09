@@ -155,6 +155,61 @@ export default function BottomNav() {
 
 
 
+      {/* POOLS */}
+
+      <NavLink
+        to="/pools"
+        className={({ isActive }) =>
+          `bottom-nav-item ${
+            isActive
+              ? "active"
+              : ""
+          }`
+        }
+      >
+
+        <span className="bottom-nav-icon">
+
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+
+            <circle
+              cx="12"
+              cy="12"
+              r="8"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+
+            <path
+              d="
+                M12 7v10
+                M15 9.5c0-1.1-1.2-2-3-2s-3 .9-3 2
+                1.2 2.5 6 1.1 6 4
+                0 1.1-1.2 2-3 2s-3-.9-3-2
+              "
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+
+          </svg>
+
+        </span>
+
+
+        <span>
+          Pools
+        </span>
+
+      </NavLink>
+
+
+
       {/* NOTES */}
 
       <NavLink

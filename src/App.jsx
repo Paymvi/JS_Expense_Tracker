@@ -15,6 +15,8 @@ import {
 } from "./utils/backupHelpers";
 
 
+
+
 import "./App.css";
 
 import AddExpenseModal from "./components/AddExpenseModal";
@@ -24,6 +26,7 @@ import OverviewPage from "./pages/OverviewPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import NotesPage from "./pages/NotesPage";
 import VisualizerPage from "./pages/VisualizerPage";
+import Pools from "./pages/Pools";
 
 
 const STORAGE_KEY =
@@ -532,6 +535,8 @@ function App() {
             />
           }
         />
+
+        <Route path="/pools" element={<Pools />} />
 
 
         <Route
