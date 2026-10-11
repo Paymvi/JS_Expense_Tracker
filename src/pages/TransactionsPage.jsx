@@ -19,6 +19,91 @@ export default function TransactionsPage({
 }) {
 
   // ======================================================
+  // SPLIT DESCRIPTION INTO OPTIONAL TAG + DESCRIPTION
+  // ======================================================
+
+  function parseTransactionDescription(
+    description
+  ) {
+
+    const originalDescription =
+      String(
+        description || "Expense"
+      ).trim();
+
+
+    // Find the FIRST colon.
+    //
+    // Example:
+    //
+    // "Taco Bell: grilled cheese burrito"
+    //
+    // becomes:
+    //
+    // tag: "Taco Bell"
+    // description: "grilled cheese burrito"
+    const colonIndex =
+      originalDescription.indexOf(":");
+
+
+    // No colon?
+    //
+    // Keep the entire thing as the description.
+    if (colonIndex === -1) {
+
+      return {
+        tag: null,
+        description:
+          originalDescription,
+      };
+
+    }
+
+
+    const possibleTag =
+      originalDescription
+        .slice(
+          0,
+          colonIndex
+        )
+        .trim();
+
+
+    const remainingDescription =
+      originalDescription
+        .slice(
+          colonIndex + 1
+        )
+        .trim();
+
+
+    // If the colon does not actually have
+    // useful text on BOTH sides,
+    // do not split it.
+    if (
+      !possibleTag ||
+      !remainingDescription
+    ) {
+
+      return {
+        tag: null,
+        description:
+          originalDescription,
+      };
+
+    }
+
+
+    return {
+      tag: possibleTag,
+      description:
+        remainingDescription,
+    };
+
+  }
+
+
+  // ======================================================
   // GROUP TRANSACTIONS BY DATE
   // ======================================================
 
@@ -35,13 +120,21 @@ export default function TransactionsPage({
 
         // First sort by the actual expense date.
         const dateComparison =
-          String(b.date).localeCompare(
-            String(a.date)
+          String(
+            b.date
+          ).localeCompare(
+            String(
+              a.date
+            )
           );
 
 
-        if (dateComparison !== 0) {
+        if (
+          dateComparison !== 0
+        ) {
+
           return dateComparison;
+
         }
 
 
@@ -89,22 +182,29 @@ export default function TransactionsPage({
           if (!group) {
 
             group = {
-              date: expense.date,
+              date:
+                expense.date,
 
-              total: 0,
+              total:
+                0,
 
-              expenses: [],
+              expenses:
+                [],
             };
 
 
-            groups.push(group);
+            groups.push(
+              group
+            );
+
           }
 
 
           // Add the amount to the daily total.
-          group.total += Number(
-            expense.amount || 0
-          );
+          group.total +=
+            Number(
+              expense.amount || 0
+            );
 
 
           // Add the transaction to that day.
@@ -136,18 +236,26 @@ export default function TransactionsPage({
 
 
     if (!date) {
+
       return dateString;
+
     }
 
 
     const currentYear =
-      new Date().getFullYear();
+      new Date()
+        .getFullYear();
 
 
     const options = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
+      weekday:
+        "short",
+
+      month:
+        "short",
+
+      day:
+        "numeric",
     };
 
 
@@ -157,14 +265,18 @@ export default function TransactionsPage({
       date.getFullYear() !==
       currentYear
     ) {
+
       options.year =
         "numeric";
+
     }
 
 
-    return date.toLocaleDateString(
-      "en-US",
-      options
+    return (
+      date.toLocaleDateString(
+        "en-US",
+        options
+      )
     );
 
   }
@@ -174,7 +286,9 @@ export default function TransactionsPage({
   // EMPTY STATE
   // ======================================================
 
-  if (expenses.length === 0) {
+  if (
+    expenses.length === 0
+  ) {
 
     return (
 
@@ -182,17 +296,23 @@ export default function TransactionsPage({
 
         <header className="transactions-header">
 
-          <div className="app-eyebrow">
-            Expense Tracker
-          </div>
+          <div>
 
-          <h1>
-            Transactions
-          </h1>
+            <div className="app-eyebrow">
+              Expense Tracker
+            </div>
+
+            <h1>
+              Transactions
+            </h1>
+
+          </div>
 
         </header>
 
+
         {/* IMPORT / EXPORT */}
+
         <ImportExportControls
           onExport={
             onExportExpenses
@@ -265,16 +385,18 @@ export default function TransactionsPage({
 
       </header>
 
-        {/* IMPORT / EXPORT */}
-        <ImportExportControls
-          onExport={
-            onExportExpenses
-          }
 
-          onImport={
-            onImportExpenses
-          }
-        />
+      {/* IMPORT / EXPORT */}
+
+      <ImportExportControls
+        onExport={
+          onExportExpenses
+        }
+
+        onImport={
+          onImportExpenses
+        }
+      />
 
 
       {/* TRANSACTION GROUPS */}
@@ -314,52 +436,85 @@ export default function TransactionsPage({
               <div className="transaction-list">
 
                 {group.expenses.map(
-                  (expense) => (
+                  (expense) => {
 
-                    <button
-                      type="button"
-                      className="transaction-row"
-                      key={expense.id}
-                      onClick={() => {
-                        onEditExpense(expense);
-                      }}
-                    >
+                    const {
+                      tag,
+                      description,
+                    } =
+                      parseTransactionDescription(
+                        expense.description
+                      );
 
-                      {/* LEFT SIDE */}
 
-                      <div className="transaction-info">
+                    return (
 
-                        <div className="transaction-name">
+                      <button
+                        type="button"
+                        className="transaction-row"
+                        key={expense.id}
+                        onClick={() => {
 
-                          {expense.description ||
-                            "Expense"}
+                          onEditExpense(
+                            expense
+                          );
+
+                        }}
+                      >
+
+                        {/* LEFT SIDE */}
+
+                        <div className="transaction-info">
+
+                          {/* OPTIONAL PREFIX TAG */}
+
+                          {tag && (
+
+                            <div className="transaction-prefix-tag">
+
+                              {tag}
+
+                            </div>
+
+                          )}
+
+
+                          {/* FULL WRAPPING DESCRIPTION */}
+
+                          <div className="transaction-name">
+
+                            {description}
+
+                          </div>
+
+
+                          {/* CATEGORY */}
+
+                          <div className="transaction-category">
+
+                            {expense.category ||
+                              "Other"}
+
+                          </div>
 
                         </div>
 
 
-                        <div className="transaction-category">
+                        {/* RIGHT SIDE */}
 
-                          {expense.category ||
-                            "Other"}
+                        <div className="transaction-amount">
+
+                          {formatCurrency(
+                            expense.amount
+                          )}
 
                         </div>
 
-                      </div>
+                      </button>
 
+                    );
 
-                      {/* RIGHT SIDE */}
-
-                      <div className="transaction-amount">
-
-                        {formatCurrency(
-                          expense.amount
-                        )}
-
-                      </div>
-
-                    </button>
-
-                  )
+                  }
                 )}
 
               </div>
@@ -374,4 +529,5 @@ export default function TransactionsPage({
     </main>
 
   );
+
 }
