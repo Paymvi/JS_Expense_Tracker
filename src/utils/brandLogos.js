@@ -1,83 +1,64 @@
 // =========================================================
 // BRAND LOGOS
 //
-// Maps the merchant written before the first colon in an
-// expense description ("Hannaford: groceries") to a logo
-// bundled with the app. Nothing is fetched or sent anywhere.
-//
-// To add a brand: put its logo in src/assets/brands/,
-// import it below and add one entry. Names and aliases are
-// matched ignoring case, spaces and punctuation, so
-// "TJ Maxx", "t.j. maxx" and "tjmaxx" are the same.
+// Connects the brand registry (brands.js) to the logo files
+// bundled in src/assets/brands/<id>.png|svg. Everything is
+// local: nothing is fetched and no expense data leaves the
+// device. See brands.js for how to add a brand.
 // =========================================================
 
-import chickfila from "../assets/brands/chickfila.png";
-import dunkin from "../assets/brands/dunkin.svg";
-import fivebelow from "../assets/brands/fivebelow.svg";
-import hannaford from "../assets/brands/hannaford.svg";
-import marshalls from "../assets/brands/marshalls.svg";
-import starbucks from "../assets/brands/starbucks.png";
-import tacobell from "../assets/brands/tacobell.svg";
-import texasroadhouse from "../assets/brands/texasroadhouse.png";
-import tjmaxx from "../assets/brands/tjmaxx.svg";
+import {
+  findBrand,
+} from "./brands";
 
 
-const BRANDS = [
-  { logo: chickfila, names: ["Chick-fil-A", "Chik fil a", "Chickfila", "Chick fila"] },
-  { logo: dunkin, names: ["Dunkin", "Dunkin'", "Dunkin Donuts", "Dunks", "Dunkies"] },
-  { logo: fivebelow, names: ["Five Below", "5 Below"] },
-  { logo: hannaford, names: ["Hannaford", "Hannafords", "Haniford", "Hanniford", "Hannaford Supermarket"] },
-  { logo: marshalls, names: ["Marshalls", "Marshall's"] },
-  { logo: starbucks, names: ["Starbucks", "Starbuck's", "Sbux"] },
-  { logo: tacobell, names: ["Taco Bell"] },
-  { logo: texasroadhouse, names: ["Texas Roadhouse"] },
-  { logo: tjmaxx, names: ["TJ Maxx", "TJMaxx", "T.J. Maxx", "TJ Max"] },
-];
+// "../assets/brands/walmart.png" -> bundled URL
+const LOGO_FILES =
+  import.meta.glob(
+    "../assets/brands/*.{png,svg}",
+    {
+      eager: true,
+      import: "default",
+    }
+  );
 
 
-function normalizeBrandName(name) {
-
-  return String(name)
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-}
-
-
-const LOGO_BY_NAME =
+const LOGO_BY_ID =
   new Map(
-    BRANDS.flatMap(
-      ({ logo, names }) =>
-        names.map(
-          (name) => [
-            normalizeBrandName(name),
-            logo,
-          ]
-        )
+    Object.entries(LOGO_FILES).map(
+      ([path, url]) => [
+        path.split("/").pop().replace(/\.(png|svg)$/, ""),
+        url,
+      ]
     )
   );
 
 
-// Returns the logo URL for the merchant before the first
-// colon, or null when there is no colon or no known brand.
+// Descriptions repeat across renders; match each one once.
+const logoCache =
+  new Map();
+
+
+// Returns the logo URL for an expense description, or null
+// when no known brand is mentioned (caller shows the
+// category icon instead).
 export function getBrandLogo(description) {
 
-  const text =
+  const key =
     String(description ?? "");
 
-  const colonIndex =
-    text.indexOf(":");
+  if (!logoCache.has(key)) {
 
-  if (colonIndex === -1) {
-    return null;
+    const brand =
+      findBrand(key);
+
+    logoCache.set(
+      key,
+      (brand && LOGO_BY_ID.get(brand.id)) ?? null
+    );
+
   }
 
-  return (
-    LOGO_BY_NAME.get(
-      normalizeBrandName(
-        text.slice(0, colonIndex)
-      )
-    ) ?? null
-  );
+  return logoCache.get(key);
 
 }
