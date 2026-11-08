@@ -5,13 +5,12 @@ import {
   useState,
 } from "react";
 
+import {
+  getNotes,
+  saveNotes,
+} from "../data/notesRepository";
 
-// =========================================================
-// STORAGE
-// =========================================================
-
-const NOTES_STORAGE_KEY =
-  "expense-tracker-notes-v1";
+import { saveTextFile } from "../utils/saveFile";
 
 
 // =========================================================
@@ -282,21 +281,10 @@ export default function NotesPage() {
     setNotes,
   ] = useState(() => {
 
-    const saved =
-      localStorage.getItem(
-        NOTES_STORAGE_KEY
-      );
-
-
-    if (!saved) {
-      return [];
-    }
-
-
     try {
 
       const parsed =
-        JSON.parse(saved);
+        getNotes();
 
 
       if (
@@ -375,9 +363,8 @@ export default function NotesPage() {
 
   useEffect(() => {
 
-    localStorage.setItem(
-      NOTES_STORAGE_KEY,
-      JSON.stringify(notes)
+    saveNotes(
+      notes
     );
 
   }, [notes]);
@@ -805,50 +792,21 @@ export default function NotesPage() {
       );
 
 
-    const blob =
-      new Blob(
-        [json],
-        {
-          type:
-            "application/json",
-        }
+    saveTextFile(
+      `expense-tracker-notes-${getTodayDate()}.json`,
+      json
+    ).catch((error) => {
+
+      console.error(
+        "Could not export notes:",
+        error
       );
 
-
-    const url =
-      URL.createObjectURL(
-        blob
+      window.alert(
+        "Could not export notes."
       );
 
-
-    const link =
-      document.createElement(
-        "a"
-      );
-
-
-    link.href =
-      url;
-
-
-    link.download =
-      `expense-tracker-notes-${getTodayDate()}.json`;
-
-
-    document.body.appendChild(
-      link
-    );
-
-
-    link.click();
-
-
-    link.remove();
-
-
-    URL.revokeObjectURL(
-      url
-    );
+    });
 
   }
 

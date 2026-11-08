@@ -1,0 +1,14 @@
+{
+  "appId": "com.personal.expensetracker",
+  "appName": "Expense Tracker",
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "style": "LIGHT"
+    },
+    "CapacitorSQLite": {
+      "androidIsEncryption": false
+    }
+  }
+}

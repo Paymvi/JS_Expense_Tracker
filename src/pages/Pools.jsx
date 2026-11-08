@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-
-const STORAGE_KEY = "finance-pools-v1";
+import { getPools, savePools } from "../data/poolsRepository";
 
 const CONTRIBUTION_TYPES = [
   {
@@ -132,13 +131,7 @@ const getPoolLifetimeSpent = (pool) => {
 
 const loadPools = () => {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (!saved) {
-      return [];
-    }
-
-    const parsed = JSON.parse(saved);
+    const parsed = getPools();
 
     if (!Array.isArray(parsed)) {
       return [];
@@ -186,7 +179,7 @@ function Pools() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(pools));
+      savePools(pools);
     } catch (error) {
       console.error("Could not save money pools:", error);
     }

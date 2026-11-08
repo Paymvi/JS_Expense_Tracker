@@ -4,16 +4,17 @@ import {
   useState,
 } from "react";
 
+import {
+  getSetting,
+  setSetting,
+} from "../data/storage";
+
 
 const BILL_OPTIONS = [
   5,
   10,
   20,
 ];
-
-
-const HOURLY_RATE_STORAGE_KEY =
-  "expense-tracker-hourly-rate-v1";
 
 
 export default function VisualizerPage({
@@ -49,8 +50,8 @@ export default function VisualizerPage({
     try {
 
       return (
-        localStorage.getItem(
-          HOURLY_RATE_STORAGE_KEY
+        getSetting(
+          "hourlyRate"
         ) || ""
       );
 
@@ -122,8 +123,8 @@ export default function VisualizerPage({
 
     try {
 
-      localStorage.setItem(
-        HOURLY_RATE_STORAGE_KEY,
+      setSetting(
+        "hourlyRate",
         hourlyRate
       );
 

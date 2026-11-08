@@ -54,3 +54,36 @@ button {
   width: 100%;
   min-height: 100vh;
 }
+/* =========================================================
+   NATIVE APP
+========================================================= */
+
+/* Android WebViews flash a blue box on every tap.
+   Buttons already have their own pressed styles. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Shown only if saved data can't be opened at startup. */
+.startup-error {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.startup-error h1 {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+
+.startup-error p {
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.startup-error pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  color: #6b7280;
+}

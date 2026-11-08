@@ -14,7 +14,28 @@ import {
   readExpenseBackup,
 } from "./utils/backupHelpers";
 
+import {
+  addExpense as saveNewExpense,
+  deleteExpense as removeExpense,
+  replaceExpenses,
+  updateExpense as saveExpenseChanges,
+  useExpenses,
+} from "./data/expenseRepository";
 
+import {
+  getNotes,
+  saveNotes,
+} from "./data/notesRepository";
+
+import {
+  getPools,
+  savePools,
+} from "./data/poolsRepository";
+
+import {
+  getSetting,
+  setSetting,
+} from "./data/storage";
 
 
 import "./App.css";
@@ -27,13 +48,6 @@ import TransactionsPage from "./pages/TransactionsPage";
 import NotesPage from "./pages/NotesPage";
 import VisualizerPage from "./pages/VisualizerPage";
 import Pools from "./pages/Pools";
-
-
-const STORAGE_KEY =
-  "expense-tracker-expenses-v1";
-
-const COVERED_FILTER_STORAGE_KEY =
-  "expense-tracker-include-covered-v1";
 
 
 function App() {
@@ -50,45 +64,10 @@ function App() {
   // EXPENSE DATA
   // ======================================================
 
-  const [
-    expenses,
-    setExpenses,
-  ] = useState(() => {
-
-    try {
-
-      const saved =
-        localStorage.getItem(
-          STORAGE_KEY
-        );
-
-
-      if (!saved) {
-        return [];
-      }
-
-
-      const parsed =
-        JSON.parse(saved);
-
-
-      return Array.isArray(parsed)
-        ? parsed
-        : [];
-
-    } catch (error) {
-
-      console.error(
-        "Could not load expenses:",
-        error
-      );
-
-
-      return [];
-
-    }
-
-  });
+  // Loaded from the device database before the app
+  // renders. Re-renders whenever expenses change.
+  const expenses =
+    useExpenses();
 
 
   // ======================================================
@@ -100,24 +79,11 @@ function App() {
     setIncludeCovered,
   ] = useState(() => {
 
-    try {
-
-      return (
-        localStorage.getItem(
-          COVERED_FILTER_STORAGE_KEY
-        ) === "true"
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Could not load covered filter:",
-        error
-      );
-
-      return false;
-
-    }
+    return (
+      getSetting(
+        "includeCovered"
+      ) === "true"
+    );
 
   });
 
@@ -154,28 +120,14 @@ function App() {
 
 
   // ======================================================
-  // SAVE EXPENSES
-  // ======================================================
-
-  useEffect(() => {
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(expenses)
-    );
-
-  }, [expenses]);
-
-
-  // ======================================================
   // SAVE COVERED FILTER PREFERENCE
   // ======================================================
 
   useEffect(() => {
 
-    localStorage.setItem(
-      COVERED_FILTER_STORAGE_KEY,
-      String(includeCovered)
+    setSetting(
+      "includeCovered",
+      includeCovered
     );
 
   }, [includeCovered]);
@@ -189,29 +141,10 @@ function App() {
     expense
   ) {
 
-    const id =
-      globalThis.crypto
-        ?.randomUUID?.() ??
-      `${Date.now()}-${Math.random()}`;
-
-
-    const newExpense = {
-
-      id,
-
-      ...expense,
-
-      createdAt:
-        new Date().toISOString(),
-
-    };
-
-
-    setExpenses(
-      (previous) => [
-        newExpense,
-        ...previous,
-      ]
+    // The repository creates the id and createdAt,
+    // then saves it to the device.
+    saveNewExpense(
+      expense
     );
 
   }
@@ -251,40 +184,9 @@ function App() {
     changes
   ) {
 
-    setExpenses(
-      (previousExpenses) => {
-
-        return previousExpenses.map(
-          (expense) => {
-
-            // Not the transaction we're editing?
-            // Leave it exactly as it is.
-            if (
-              expense.id !==
-              expenseId
-            ) {
-              return expense;
-            }
-
-
-            // Found it.
-            // Keep the old information,
-            // then overwrite the changed fields.
-            return {
-
-              ...expense,
-
-              ...changes,
-
-              updatedAt:
-                new Date().toISOString(),
-
-            };
-
-          }
-        );
-
-      }
+    saveExpenseChanges(
+      expenseId,
+      changes
     );
   }
 
@@ -292,16 +194,8 @@ function App() {
     expenseId
   ) {
 
-    setExpenses(
-      (previousExpenses) => {
-
-        return previousExpenses.filter(
-          (expense) =>
-            expense.id !==
-            expenseId
-        );
-
-      }
+    removeExpense(
+      expenseId
     );
   }
 
@@ -309,11 +203,29 @@ function App() {
   // EXPORT BACKUP
   // ======================================================
 
-  function exportExpenses() {
+  async function exportExpenses() {
 
-    downloadExpenseBackup(
-      expenses
-    );
+    try {
+
+      await downloadExpenseBackup({
+        expenses,
+        notes: getNotes(),
+        pools: getPools(),
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Could not export backup:",
+        error
+      );
+
+
+      window.alert(
+        "Could not export this backup."
+      );
+
+    }
 
   }
 
@@ -328,10 +240,13 @@ function App() {
     try {
 
       // Read + validate the file.
-      const importedExpenses =
+      const backup =
         await readExpenseBackup(
           file
         );
+
+      const importedExpenses =
+        backup.expenses;
 
 
       // --------------------------------------------------
@@ -367,9 +282,72 @@ function App() {
       // REPLACE CURRENT EXPENSES
       // --------------------------------------------------
 
-      setExpenses(
+      replaceExpenses(
         importedExpenses
       );
+
+
+      // --------------------------------------------------
+      // NOTES + POOLS (only in newer backups)
+      //
+      // Asked separately so nothing is replaced
+      // without a clear yes.
+      // --------------------------------------------------
+
+      const restored = [];
+
+      if (
+        backup.notes &&
+        window.confirm(
+          `This backup also contains ${backup.notes.length} ${
+            backup.notes.length === 1 ? "note" : "notes"
+          }.
+
+` +
+          `Replace your current ${getNotes().length} ${
+            getNotes().length === 1 ? "note" : "notes"
+          } with them?`
+        )
+      ) {
+
+        saveNotes(
+          backup.notes
+        );
+
+        restored.push(
+          `${backup.notes.length} ${
+            backup.notes.length === 1 ? "note" : "notes"
+          }`
+        );
+
+      }
+
+
+      if (
+        backup.pools &&
+        window.confirm(
+          `This backup also contains ${backup.pools.length} ${
+            backup.pools.length === 1 ? "pool" : "pools"
+          }.
+
+` +
+          `Replace your current ${getPools().length} ${
+            getPools().length === 1 ? "pool" : "pools"
+          } with them?`
+        )
+      ) {
+
+        savePools(
+          backup.pools
+        );
+
+        restored.push(
+          `${backup.pools.length} ${
+            backup.pools.length === 1 ? "pool" : "pools"
+          }`
+        );
+
+      }
 
 
       // Make sure no old transaction is still being
@@ -391,6 +369,10 @@ function App() {
           importedExpenses.length === 1
             ? "transaction"
             : "transactions"
+        }${
+          restored.length > 0
+            ? ` and ${restored.join(" and ")}`
+            : ""
         }.`
       );
 

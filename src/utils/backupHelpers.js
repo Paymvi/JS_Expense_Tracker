@@ -2,13 +2,18 @@
 // EXPENSE TRACKER BACKUPS
 //
 // Handles:
-// - Exporting expenses to JSON
+// - Exporting expenses (plus notes and pools) to JSON
 // - Reading JSON backups
 // - Validating imported expenses
+//
+// Version 2 adds optional "notes" and "pools" arrays.
+// Version 1 files (expenses only) still import normally.
 // =========================================================
 
+import { saveTextFile } from "./saveFile";
 
-const BACKUP_VERSION = 1;
+
+const BACKUP_VERSION = 2;
 
 
 // ---------------------------------------------------------
@@ -128,11 +133,13 @@ function getDateStamp() {
 // EXPORT
 // =========================================================
 
-export function downloadExpenseBackup(
-  expenses
-) {
+export async function downloadExpenseBackup({
+  expenses,
+  notes,
+  pools,
+}) {
 
-  // Wrap the expenses in a backup object rather than
+  // Wrap the data in a backup object rather than
   // exporting the array by itself.
   //
   // This makes the backup format easier to expand later.
@@ -149,6 +156,10 @@ export function downloadExpenseBackup(
 
     expenses,
 
+    notes,
+
+    pools,
+
   };
 
 
@@ -161,53 +172,9 @@ export function downloadExpenseBackup(
     );
 
 
-  // Convert the JSON string into a downloadable file.
-  const blob =
-    new Blob(
-      [json],
-      {
-        type:
-          "application/json",
-      }
-    );
-
-
-  const url =
-    URL.createObjectURL(
-      blob
-    );
-
-
-  // Create a temporary download link.
-  const link =
-    document.createElement(
-      "a"
-    );
-
-
-  link.href =
-    url;
-
-
-  link.download =
-    `expense-tracker-backup-${getDateStamp()}.json`;
-
-
-  document.body.appendChild(
-    link
-  );
-
-
-  // Trigger the browser download.
-  link.click();
-
-
-  // Clean everything up.
-  link.remove();
-
-
-  URL.revokeObjectURL(
-    url
+  await saveTextFile(
+    `expense-tracker-backup-${getDateStamp()}.json`,
+    json
   );
 
 }
@@ -390,7 +357,11 @@ export async function readExpenseBackup(
       // NORMALIZED EXPENSE
       // -----------------------------------------------
 
+      // Start from the original record so fields like
+      // "covered" survive a backup round trip.
       const normalizedExpense = {
+
+        ...expense,
 
         id,
 
@@ -422,14 +393,13 @@ export async function readExpenseBackup(
       };
 
 
-      // Keep updatedAt only when it exists.
+      // Keep updatedAt only when it is valid.
       if (
-        typeof expense.updatedAt ===
+        typeof expense.updatedAt !==
         "string"
       ) {
 
-        normalizedExpense.updatedAt =
-          expense.updatedAt;
+        delete normalizedExpense.updatedAt;
 
       }
 
@@ -442,6 +412,83 @@ export async function readExpenseBackup(
   );
 
 
-  return importedExpenses;
+  return {
+
+    expenses:
+      importedExpenses,
+
+    notes:
+      readOptionalRecords(
+        parsed?.notes
+      ),
+
+    pools:
+      readOptionalPools(
+        parsed?.pools
+      ),
+
+  };
+
+}
+
+
+// ---------------------------------------------------------
+// OPTIONAL SECTIONS (version 2+)
+//
+// Returns null when the section is missing or not usable,
+// so the caller simply skips it.
+// ---------------------------------------------------------
+
+function isPlainObject(value) {
+
+  return (
+    Boolean(value) &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+
+}
+
+
+function readOptionalRecords(records) {
+
+  if (
+    !Array.isArray(records) ||
+    !records.every(isPlainObject)
+  ) {
+    return null;
+  }
+
+  return records;
+
+}
+
+
+function readOptionalPools(pools) {
+
+  const records =
+    readOptionalRecords(pools);
+
+  if (!records) {
+    return null;
+  }
+
+  return records.map(
+    (pool) => ({
+
+      ...pool,
+
+      contributions:
+        Array.isArray(pool.contributions)
+          ? pool.contributions
+          : [],
+
+      spending:
+        Array.isArray(pool.spending)
+          ? pool.spending
+          : [],
+
+    })
+  );
 
 }
