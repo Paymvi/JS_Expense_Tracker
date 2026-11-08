@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -7,6 +8,15 @@ import {
   formatCurrency,
   parseExpenseDate,
 } from "../utils/expenseHelpers";
+
+import {
+  getBrandLogo,
+} from "../utils/brandLogos";
+
+import {
+  getSetting,
+  setSetting,
+} from "../data/storage";
 
 import ImportExportControls
   from "../components/ImportExportControls";
@@ -527,6 +537,68 @@ function ChevronIcon({
 
 
 // ======================================================
+// ROW ICON: BRAND LOGO OR CATEGORY ICON
+// ======================================================
+
+function ExpenseIcon({
+  category,
+  categoryType,
+  brandLogo,
+}) {
+
+  const [
+    logoFailed,
+    setLogoFailed,
+  ] = useState(false);
+
+
+  if (
+    brandLogo &&
+    !logoFailed
+  ) {
+
+    return (
+
+      <div className="tx-category-icon tx-brand-icon">
+
+        <img
+          src={brandLogo}
+          alt=""
+          loading="lazy"
+          onError={() =>
+            setLogoFailed(true)
+          }
+        />
+
+      </div>
+
+    );
+
+  }
+
+
+  return (
+
+    <div
+      className={
+        `tx-category-icon tx-category-${categoryType}`
+      }
+    >
+
+      <CategoryIcon
+        category={
+          category
+        }
+      />
+
+    </div>
+
+  );
+
+}
+
+
+// ======================================================
 // TRANSACTIONS PAGE
 // ======================================================
 
@@ -555,6 +627,28 @@ export default function TransactionsPage({
   ] = useState(
     () => new Set()
   );
+
+
+  // Display preference only: never changes saved expenses.
+  const [
+    showBrandLogos,
+    setShowBrandLogos,
+  ] = useState(
+    () =>
+      getSetting(
+        "brandLogos"
+      ) === "true"
+  );
+
+
+  useEffect(() => {
+
+    setSetting(
+      "brandLogos",
+      showBrandLogos
+    );
+
+  }, [showBrandLogos]);
 
 
   // ======================================================
@@ -1197,6 +1291,40 @@ export default function TransactionsPage({
 
       <div className="tx-backup-row">
 
+        <button
+          type="button"
+          className="tx-brand-toggle"
+          aria-pressed={
+            showBrandLogos
+          }
+          onClick={() =>
+            setShowBrandLogos(
+              (previous) =>
+                !previous
+            )
+          }
+        >
+
+          <span
+            className={
+              `covered-switch ${
+                showBrandLogos
+                  ? "active"
+                  : ""
+              }`
+            }
+            aria-hidden="true"
+          >
+
+            <span className="covered-switch-knob" />
+
+          </span>
+
+          Brand logos
+
+        </button>
+
+
         <ImportExportControls
           onExport={
             onExportExpenses
@@ -1367,6 +1495,14 @@ export default function TransactionsPage({
                           );
 
 
+                        const brandLogo =
+                          showBrandLogos
+                            ? getBrandLogo(
+                                expense.description
+                              )
+                            : null;
+
+
                         return (
 
                           <button
@@ -1382,21 +1518,23 @@ export default function TransactionsPage({
                             }}
                           >
 
-                            {/* CATEGORY ICON */}
+                            {/* CATEGORY ICON OR BRAND LOGO */}
 
-                            <div
-                              className={
-                                `tx-category-icon tx-category-${categoryType}`
+                            <ExpenseIcon
+                              key={
+                                brandLogo ||
+                                "category"
                               }
-                            >
-
-                              <CategoryIcon
-                                category={
-                                  category
-                                }
-                              />
-
-                            </div>
+                              category={
+                                category
+                              }
+                              categoryType={
+                                categoryType
+                              }
+                              brandLogo={
+                                brandLogo
+                              }
+                            />
 
 
                             {/* TEXT */}

@@ -50,6 +50,9 @@ const SETTINGS = {
   hourlyRate:
     "expense-tracker-hourly-rate-v1",
 
+  brandLogos:
+    "expense-tracker-brand-logos-v1",
+
 };
 
 
