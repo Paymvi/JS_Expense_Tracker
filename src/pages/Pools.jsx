@@ -1,36 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { getPools, savePools } from "../data/poolsRepository";
+import { formatCurrency as formatMoney } from "../utils/expenseHelpers";
+import {
+  addContribution,
+  addSpending,
+  byOldestFirst,
+  deleteContribution,
+  deleteSpending,
+  getAmountUsed,
+  getPoolBalance,
+  updateContribution,
+  updatePool,
+  updateSpending,
+} from "../utils/poolMath";
 
 const CONTRIBUTION_TYPES = [
-  {
-    value: "skipped",
-    label: "Skipped purchase",
-  },
-  {
-    value: "discount",
-    label: "Sale / discount",
-  },
-  {
-    value: "cheaper",
-    label: "Bought cheaper option",
-  },
-  {
-    value: "refund",
-    label: "Refund",
-  },
-  {
-    value: "coupon",
-    label: "Coupon / promo",
-  },
-  {
-    value: "extra",
-    label: "Extra money",
-  },
-  {
-    value: "other",
-    label: "Other",
-  },
+  { value: "skipped", label: "Skipped purchase" },
+  { value: "discount", label: "Sale / discount" },
+  { value: "cheaper", label: "Bought cheaper option" },
+  { value: "refund", label: "Refund" },
+  { value: "coupon", label: "Coupon / promo" },
+  { value: "extra", label: "Extra money" },
+  { value: "other", label: "Other" },
 ];
 
 const createId = () => {
@@ -54,19 +46,6 @@ const getTodayInputValue = () => {
   return `${year}-${month}-${day}`;
 };
 
-const formatMoney = (value) => {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return "$0.00";
-  }
-
-  return amount.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-};
-
 const formatDate = (value) => {
   if (!value) {
     return "";
@@ -85,49 +64,20 @@ const formatDate = (value) => {
   });
 };
 
-const formatDateTime = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-};
-
 const getContributionLabel = (type) => {
   return (
     CONTRIBUTION_TYPES.find((item) => item.value === type)?.label || "Other"
   );
 };
 
-const getPoolBalance = (pool) => {
-  return (pool.contributions || []).reduce((total, contribution) => {
-    return total + Number(contribution.remainingAmount || 0);
-  }, 0);
-};
+const getSourceIcon = (type) =>
+  ({ discount: "%", refund: "↩", skipped: "×" })[type] || "$";
 
-const getPoolLifetimeSaved = (pool) => {
-  return (pool.contributions || []).reduce((total, contribution) => {
-    return total + Number(contribution.originalAmount || 0);
-  }, 0);
-};
+const hasHistory = (pool) =>
+  (pool.contributions || []).length > 0 || (pool.spending || []).length > 0;
 
-const getPoolLifetimeSpent = (pool) => {
-  return (pool.spending || []).reduce((total, transaction) => {
-    return total + Number(transaction.amount || 0);
-  }, 0);
-};
+const sumBy = (list, key) =>
+  list.reduce((total, item) => total + Number(item[key] || 0), 0);
 
 const loadPools = () => {
   try {
@@ -144,38 +94,27 @@ const loadPools = () => {
   }
 };
 
+const NO_POOL = { contributions: [], spending: [] };
+
+const pickDefaultPool = (pools) =>
+  (pools.find((pool) => !pool.archivedAt) || pools[0])?.id || null;
+
 function Pools() {
   const [pools, setPools] = useState(loadPools);
 
-  const [selectedPoolId, setSelectedPoolId] = useState(() => {
-    const existing = loadPools();
-
-    return existing[0]?.id || null;
-  });
-
-  const [showCreatePool, setShowCreatePool] = useState(false);
-  const [showAddMoney, setShowAddMoney] = useState(false);
-  const [showSpendMoney, setShowSpendMoney] = useState(false);
-
-  const [newPoolName, setNewPoolName] = useState("");
-  const [newPoolDescription, setNewPoolDescription] = useState("");
-
-  const [contributionForm, setContributionForm] = useState({
-    title: "",
-    amount: "",
-    type: "skipped",
-    date: getTodayInputValue(),
-    note: "",
-  });
-
-  const [spendForm, setSpendForm] = useState({
-    title: "",
-    amount: "",
-    date: getTodayInputValue(),
-    note: "",
-  });
+  const [selectedPoolId, setSelectedPoolId] = useState(() =>
+    pickDefaultPool(loadPools())
+  );
 
   const [activeTab, setActiveTab] = useState("money");
+  const [showHelp, setShowHelp] = useState(false);
+
+  // null = closed. { id } present = editing an existing pool.
+  const [poolForm, setPoolForm] = useState(null);
+
+  // null = closed. kind: "contribution" | "spending".
+  // id present = editing an existing entry.
+  const [entryForm, setEntryForm] = useState(null);
 
   useEffect(() => {
     try {
@@ -185,116 +124,114 @@ function Pools() {
     }
   }, [pools]);
 
-  useEffect(() => {
-    if (!pools.length) {
-      setSelectedPoolId(null);
+  const activePools = useMemo(
+    () => pools.filter((pool) => !pool.archivedAt),
+    [pools]
+  );
+
+  const archivedPools = useMemo(
+    () => pools.filter((pool) => pool.archivedAt),
+    [pools]
+  );
+
+  // Falls back to the first active pool when the selected one
+  // was archived or deleted.
+  const selectedPool = useMemo(() => {
+    const fallbackId = pickDefaultPool(pools);
+
+    return (
+      pools.find((pool) => pool.id === selectedPoolId) ||
+      pools.find((pool) => pool.id === fallbackId) ||
+      null
+    );
+  }, [pools, selectedPoolId]);
+
+  const totals = useMemo(() => {
+    return {
+      available: activePools.reduce(
+        (total, pool) => total + getPoolBalance(pool),
+        0
+      ),
+      added: activePools.reduce(
+        (total, pool) => total + sumBy(pool.contributions || [], "originalAmount"),
+        0
+      ),
+      spent: activePools.reduce(
+        (total, pool) => total + sumBy(pool.spending || [], "amount"),
+        0
+      ),
+    };
+  }, [activePools]);
+
+  // Never null: the React Compiler drops `?.` when it turns
+  // `shownPool.x` into a memo dependency check.
+  const shownPool = selectedPool || NO_POOL;
+
+  const availableContributions = useMemo(() => {
+    return (shownPool.contributions || [])
+      .filter((item) => Number(item.remainingAmount) > 0)
+      .sort(byOldestFirst);
+  }, [shownPool]);
+
+  const usedContributions = useMemo(() => {
+    return (shownPool.contributions || [])
+      .filter((item) => Number(item.remainingAmount) <= 0)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  }, [shownPool]);
+
+  const spendingHistory = useMemo(() => {
+    return [...(shownPool.spending || [])].sort(
+      (a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)
+    );
+  }, [shownPool]);
+
+  // Applies a poolMath result, or keeps the form open with
+  // the message so the typed values are not lost.
+  const commit = (result, setForm) => {
+    if (result.error) {
+      setForm((current) => current && { ...current, error: result.error });
+      return false;
+    }
+
+    setPools(result.pools);
+    setForm(null);
+    return true;
+  };
+
+  // ---------------------------------------------------------
+  // POOL FORM
+  // ---------------------------------------------------------
+
+  const openNewPool = () =>
+    setPoolForm({ name: "", description: "", error: "" });
+
+  const openEditPool = () =>
+    setPoolForm({
+      id: shownPool.id,
+      name: shownPool.name,
+      description: shownPool.description || "",
+      error: "",
+    });
+
+  const handleSavePool = (event) => {
+    event.preventDefault();
+
+    if (poolForm.id) {
+      commit(updatePool(pools, poolForm.id, poolForm), setPoolForm);
       return;
     }
 
-    const selectedStillExists = pools.some(
-      (pool) => pool.id === selectedPoolId
-    );
-
-    if (!selectedStillExists) {
-      setSelectedPoolId(pools[0].id);
-    }
-  }, [pools, selectedPoolId]);
-
-  const selectedPool = useMemo(() => {
-    return pools.find((pool) => pool.id === selectedPoolId) || null;
-  }, [pools, selectedPoolId]);
-
-  const totalAcrossPools = useMemo(() => {
-    return pools.reduce((total, pool) => {
-      return total + getPoolBalance(pool);
-    }, 0);
-  }, [pools]);
-
-  const totalLifetimeSaved = useMemo(() => {
-    return pools.reduce((total, pool) => {
-      return total + getPoolLifetimeSaved(pool);
-    }, 0);
-  }, [pools]);
-
-  const totalLifetimeSpent = useMemo(() => {
-    return pools.reduce((total, pool) => {
-      return total + getPoolLifetimeSpent(pool);
-    }, 0);
-  }, [pools]);
-
-  const availableContributions = useMemo(() => {
-    if (!selectedPool) {
-      return [];
-    }
-
-    return [...(selectedPool.contributions || [])]
-      .filter((item) => Number(item.remainingAmount) > 0)
-      .sort((a, b) => {
-        const aDate = new Date(`${a.date}T00:00:00`).getTime();
-        const bDate = new Date(`${b.date}T00:00:00`).getTime();
-
-        if (aDate !== bDate) {
-          return aDate - bDate;
-        }
-
-        return Number(a.createdAt || 0) - Number(b.createdAt || 0);
-      });
-  }, [selectedPool]);
-
-  const usedContributions = useMemo(() => {
-    if (!selectedPool) {
-      return [];
-    }
-
-    return [...(selectedPool.contributions || [])]
-      .filter((item) => Number(item.remainingAmount) <= 0)
-      .sort((a, b) => {
-        return Number(b.createdAt || 0) - Number(a.createdAt || 0);
-      });
-  }, [selectedPool]);
-
-  const spendingHistory = useMemo(() => {
-    if (!selectedPool) {
-      return [];
-    }
-
-    return [...(selectedPool.spending || [])].sort((a, b) => {
-      return Number(b.createdAt || 0) - Number(a.createdAt || 0);
-    });
-  }, [selectedPool]);
-
-  const resetContributionForm = () => {
-    setContributionForm({
-      title: "",
-      amount: "",
-      type: "skipped",
-      date: getTodayInputValue(),
-      note: "",
-    });
-  };
-
-  const resetSpendForm = () => {
-    setSpendForm({
-      title: "",
-      amount: "",
-      date: getTodayInputValue(),
-      note: "",
-    });
-  };
-
-  const handleCreatePool = (event) => {
-    event.preventDefault();
-
-    const name = newPoolName.trim();
+    const name = poolForm.name.trim();
 
     if (!name) {
+      setPoolForm({ ...poolForm, error: "Give the pool a name." });
       return;
     }
 
     const newPool = {
       id: createId(),
       name,
-      description: newPoolDescription.trim(),
+      description: poolForm.description.trim(),
       createdAt: Date.now(),
       contributions: [],
       spending: [],
@@ -302,406 +239,257 @@ function Pools() {
 
     setPools((current) => [...current, newPool]);
     setSelectedPoolId(newPool.id);
-
-    setNewPoolName("");
-    setNewPoolDescription("");
-    setShowCreatePool(false);
+    setPoolForm(null);
   };
 
-  const handleDeletePool = () => {
-    if (!selectedPool) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Delete "${selectedPool.name}"? This will remove its saved-money entries and spending history.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setPools((current) =>
-      current.filter((pool) => pool.id !== selectedPool.id)
-    );
-  };
-
-  const handleAddContribution = (event) => {
-    event.preventDefault();
-
-    if (!selectedPool) {
-      return;
-    }
-
-    const title = contributionForm.title.trim();
-    const amount = Number(contributionForm.amount);
-
-    if (!title || !Number.isFinite(amount) || amount <= 0) {
-      return;
-    }
-
-    const contribution = {
-      id: createId(),
-      title,
-      type: contributionForm.type,
-      originalAmount: amount,
-      remainingAmount: amount,
-      date: contributionForm.date || getTodayInputValue(),
-      note: contributionForm.note.trim(),
-      createdAt: Date.now(),
-    };
-
-    setPools((current) =>
-      current.map((pool) => {
-        if (pool.id !== selectedPool.id) {
-          return pool;
-        }
-
-        return {
-          ...pool,
-          contributions: [...(pool.contributions || []), contribution],
-        };
-      })
-    );
-
-    resetContributionForm();
-    setShowAddMoney(false);
-  };
-
-  const handleDeleteContribution = (contributionId) => {
-    if (!selectedPool) {
-      return;
-    }
-
-    const contribution = selectedPool.contributions.find(
-      (item) => item.id === contributionId
-    );
-
-    if (!contribution) {
-      return;
-    }
-
-    const amountUsed =
-      Number(contribution.originalAmount) -
-      Number(contribution.remainingAmount);
-
-    if (amountUsed > 0) {
-      window.alert(
-        "This contribution has already funded spending and cannot be deleted."
-      );
-      return;
-    }
-
-    setPools((current) =>
-      current.map((pool) => {
-        if (pool.id !== selectedPool.id) {
-          return pool;
-        }
-
-        return {
-          ...pool,
-          contributions: pool.contributions.filter(
-            (item) => item.id !== contributionId
-          ),
-        };
-      })
-    );
-  };
-
-  const handleSpendFromPool = (event) => {
-    event.preventDefault();
-
-    if (!selectedPool) {
-      return;
-    }
-
-    const title = spendForm.title.trim();
-    const requestedAmount = Number(spendForm.amount);
-    const availableBalance = getPoolBalance(selectedPool);
+  const setArchived = (pool, archived) => {
 
     if (
-      !title ||
-      !Number.isFinite(requestedAmount) ||
-      requestedAmount <= 0
+      archived &&
+      !window.confirm(
+        `Archive "${pool.name}"? It will be hidden from your list and left out of the totals. All of its history is kept, and you can restore it any time.`
+      )
     ) {
       return;
     }
 
-    if (requestedAmount > availableBalance) {
-      window.alert(
-        `This pool only has ${formatMoney(
-          availableBalance
-        )} available.`
-      );
-
-      return;
-    }
-
-    let amountLeftToConsume = requestedAmount;
-
-    const contributionCopies = (selectedPool.contributions || []).map(
-      (contribution) => ({
-        ...contribution,
-      })
-    );
-
-    const sortedContributionIds = [...contributionCopies]
-      .filter(
-        (contribution) =>
-          Number(contribution.remainingAmount) > 0
+    setPools((current) =>
+      current.map((item) =>
+        item.id === pool.id
+          ? { ...item, archivedAt: archived ? Date.now() : undefined }
+          : item
       )
-      .sort((a, b) => {
-        const aDate = new Date(`${a.date}T00:00:00`).getTime();
-        const bDate = new Date(`${b.date}T00:00:00`).getTime();
-
-        if (aDate !== bDate) {
-          return aDate - bDate;
-        }
-
-        return Number(a.createdAt || 0) - Number(b.createdAt || 0);
-      })
-      .map((item) => item.id);
-
-    const fundingSources = [];
-
-    for (const contributionId of sortedContributionIds) {
-      if (amountLeftToConsume <= 0) {
-        break;
-      }
-
-      const contribution = contributionCopies.find(
-        (item) => item.id === contributionId
-      );
-
-      if (!contribution) {
-        continue;
-      }
-
-      const remainingAmount = Number(
-        contribution.remainingAmount || 0
-      );
-
-      if (remainingAmount <= 0) {
-        continue;
-      }
-
-      const consumedAmount = Math.min(
-        remainingAmount,
-        amountLeftToConsume
-      );
-
-      contribution.remainingAmount =
-        remainingAmount - consumedAmount;
-
-      amountLeftToConsume -= consumedAmount;
-
-      fundingSources.push({
-        contributionId: contribution.id,
-        title: contribution.title,
-        type: contribution.type,
-        amount: consumedAmount,
-      });
-    }
-
-    const spendingRecord = {
-      id: createId(),
-      title,
-      amount: requestedAmount,
-      date: spendForm.date || getTodayInputValue(),
-      note: spendForm.note.trim(),
-      fundingSources,
-      createdAt: Date.now(),
-    };
-
-    setPools((current) =>
-      current.map((pool) => {
-        if (pool.id !== selectedPool.id) {
-          return pool;
-        }
-
-        return {
-          ...pool,
-          contributions: contributionCopies,
-          spending: [
-            ...(pool.spending || []),
-            spendingRecord,
-          ],
-        };
-      })
     );
 
-    resetSpendForm();
-    setShowSpendMoney(false);
+    if (archived) {
+      setSelectedPoolId(null);
+    }
+
+    setPoolForm(null);
   };
 
-  const handleUndoSpend = (spendingId) => {
-    if (!selectedPool) {
+  const handleDeletePool = (pool) => {
+
+    const entries =
+      (pool.contributions || []).length + (pool.spending || []).length;
+
+    const message = entries
+      ? `Permanently delete "${pool.name}" and its ${entries} ${
+          entries === 1 ? "entry" : "entries"
+        }? This can't be undone. Export a backup first if you might need this history.`
+      : `Delete "${pool.name}"?`;
+
+    if (!window.confirm(message)) {
       return;
     }
 
-    const spendingRecord = selectedPool.spending.find(
-      (item) => item.id === spendingId
-    );
+    setPools((current) => current.filter((item) => item.id !== pool.id));
+    setPoolForm(null);
+  };
 
-    if (!spendingRecord) {
+  // ---------------------------------------------------------
+  // ENTRY FORM (money in / spending)
+  // ---------------------------------------------------------
+
+  const openNewEntry = (kind) =>
+    setEntryForm({
+      kind,
+      poolId: shownPool.id,
+      title: "",
+      amount: "",
+      type: "skipped",
+      date: getTodayInputValue(),
+      note: "",
+      error: "",
+    });
+
+  const openEditEntry = (kind, entry) =>
+    setEntryForm({
+      kind,
+      id: entry.id,
+      poolId: shownPool.id,
+      title: entry.title || "",
+      amount: String(
+        kind === "contribution" ? entry.originalAmount : entry.amount
+      ),
+      type: entry.type || "other",
+      date: entry.date || getTodayInputValue(),
+      note: entry.note || "",
+      error: "",
+    });
+
+  const updateEntryField = (field) => (event) =>
+    setEntryForm((current) => ({
+      ...current,
+      [field]: event.target.value,
+      error: "",
+    }));
+
+  const handleSaveEntry = (event) => {
+    event.preventDefault();
+
+    const { kind, id } = entryForm;
+    const poolId = shownPool.id;
+
+    const result =
+      kind === "contribution"
+        ? id
+          ? updateContribution(pools, poolId, id, entryForm)
+          : addContribution(pools, poolId, entryForm)
+        : id
+          ? updateSpending(pools, poolId, id, entryForm)
+          : addSpending(pools, poolId, entryForm);
+
+    if (commit(result, setEntryForm) && entryForm.poolId !== poolId) {
+      setSelectedPoolId(entryForm.poolId);
+    }
+  };
+
+  const handleRemoveEntry = () => {
+    const { kind, id } = entryForm;
+    const entry = (shownPool[kind === "contribution" ? "contributions" : "spending"] || [])
+      .find((item) => item.id === id);
+
+    if (!entry) {
+      setEntryForm(null);
       return;
     }
 
-    const confirmed = window.confirm(
-      `Undo "${spendingRecord.title}" and return ${formatMoney(
-        spendingRecord.amount
-      )} to this pool?`
-    );
+    const message =
+      kind === "contribution"
+        ? `Delete "${entry.title}"? ${formatMoney(entry.originalAmount)} will be removed from this pool.`
+        : `Undo "${entry.title}"? ${formatMoney(entry.amount)} goes back to the money that paid for it.`;
 
-    if (!confirmed) {
+    if (!window.confirm(message)) {
       return;
     }
 
-    setPools((current) =>
-      current.map((pool) => {
-        if (pool.id !== selectedPool.id) {
-          return pool;
-        }
-
-        const contributions = pool.contributions.map(
-          (contribution) => {
-            const source = spendingRecord.fundingSources?.find(
-              (fundingSource) =>
-                fundingSource.contributionId === contribution.id
-            );
-
-            if (!source) {
-              return contribution;
-            }
-
-            return {
-              ...contribution,
-              remainingAmount:
-                Number(contribution.remainingAmount || 0) +
-                Number(source.amount || 0),
-            };
-          }
-        );
-
-        return {
-          ...pool,
-          contributions,
-          spending: pool.spending.filter(
-            (item) => item.id !== spendingId
-          ),
-        };
-      })
+    commit(
+      kind === "contribution"
+        ? deleteContribution(pools, shownPool.id, id)
+        : deleteSpending(pools, shownPool.id, id),
+      setEntryForm
     );
   };
+
+  // Money the spending form can use: the pool balance plus
+  // (when editing in place) what this entry already holds.
+  const editingEntry =
+    entryForm?.id && selectedPool
+      ? (entryForm.kind === "contribution"
+          ? shownPool.contributions
+          : shownPool.spending
+        )?.find((item) => item.id === entryForm.id)
+      : null;
+
+  const spendTargetPool =
+    entryForm?.kind === "spending"
+      ? pools.find((pool) => pool.id === entryForm.poolId)
+      : null;
+
+  const spendAvailable = spendTargetPool
+    ? getPoolBalance(spendTargetPool) +
+      (editingEntry && entryForm.poolId === shownPool.id
+        ? Number(editingEntry.amount || 0)
+        : 0)
+    : 0;
+
+  const usedAmount =
+    entryForm?.kind === "contribution" && editingEntry
+      ? getAmountUsed(editingEntry)
+      : 0;
+
+  const isArchived = Boolean(shownPool.archivedAt);
+
+  const renderPoolRow = (pool) => (
+    <button
+      type="button"
+      key={pool.id}
+      className={`pools-pool-option ${
+        pool.id === shownPool.id ? "is-active" : ""
+      }`}
+      aria-pressed={pool.id === shownPool.id}
+      onClick={() => setSelectedPoolId(pool.id)}
+    >
+      <span className="pools-pool-option-name">{pool.name}</span>
+
+      <span className="pools-pool-option-balance">
+        {formatMoney(getPoolBalance(pool))}
+      </span>
+    </button>
+  );
 
   return (
     <main className="pools-page">
       <div className="pools-shell">
         <header className="pools-page-header">
-          <div>
-            <p className="pools-eyebrow">POOLS</p>
+          <div className="pools-title-row">
+            <h1>Pools</h1>
 
-            <h1>Give saved money somewhere to go.</h1>
-
-            <p className="pools-page-description">
-              Track the money you kept by skipping purchases,
-              finding discounts, choosing cheaper options, getting
-              refunds, and more. When you spend from a pool, you can
-              see exactly which decisions paid for it.
-            </p>
+            <button
+              type="button"
+              className="pools-help-button"
+              onClick={() => setShowHelp(true)}
+              aria-label="How pools work"
+            >
+              <span aria-hidden="true">?</span>
+            </button>
           </div>
 
           <button
             type="button"
             className="pools-primary-button"
-            onClick={() => setShowCreatePool(true)}
+            onClick={openNewPool}
           >
-            <span className="pools-button-icon">+</span>
+            <span className="pools-button-icon" aria-hidden="true">+</span>
             New pool
           </button>
         </header>
 
-        <section className="pools-summary-grid">
-          <article className="pools-summary-card pools-summary-card-main">
-            <span className="pools-summary-label">
-              Available across pools
-            </span>
+        {activePools.length > 0 && (
+          <details className="pools-summary">
+            <summary>
+              <span className="pools-summary-label">Available</span>
 
-            <strong className="pools-summary-value">
-              {formatMoney(totalAcrossPools)}
-            </strong>
+              <strong className="pools-summary-value">
+                {formatMoney(totals.available)}
+              </strong>
 
-            <span className="pools-summary-detail">
-              Money your past decisions have left available.
-            </span>
-          </article>
+              <span className="pools-summary-count">
+                {activePools.length}{" "}
+                {activePools.length === 1 ? "pool" : "pools"}
+              </span>
 
-          <article className="pools-summary-card">
-            <span className="pools-summary-label">
-              Lifetime added
-            </span>
+              <span className="pools-summary-more">More</span>
+            </summary>
 
-            <strong className="pools-summary-value-small">
-              {formatMoney(totalLifetimeSaved)}
-            </strong>
+            <dl className="pools-summary-details">
+              <div>
+                <dt>Added all-time</dt>
+                <dd>{formatMoney(totals.added)}</dd>
+              </div>
 
-            <span className="pools-summary-detail">
-              All money ever captured by your pools.
-            </span>
-          </article>
-
-          <article className="pools-summary-card">
-            <span className="pools-summary-label">
-              Spent from pools
-            </span>
-
-            <strong className="pools-summary-value-small">
-              {formatMoney(totalLifetimeSpent)}
-            </strong>
-
-            <span className="pools-summary-detail">
-              Purchases funded using pooled money.
-            </span>
-          </article>
-
-          <article className="pools-summary-card">
-            <span className="pools-summary-label">
-              Active pools
-            </span>
-
-            <strong className="pools-summary-value-small">
-              {pools.length}
-            </strong>
-
-            <span className="pools-summary-detail">
-              Separate buckets for different goals or purposes.
-            </span>
-          </article>
-        </section>
+              <div>
+                <dt>Spent from pools</dt>
+                <dd>{formatMoney(totals.spent)}</dd>
+              </div>
+            </dl>
+          </details>
+        )}
 
         {pools.length === 0 ? (
           <section className="pools-empty-state">
-            <div className="pools-empty-icon">
-              <span>$</span>
-            </div>
-
-            <p className="pools-empty-eyebrow">
-              START YOUR FIRST POOL
-            </p>
-
-            <h2>Turn little wins into something visible.</h2>
+            <h2>No pools yet</h2>
 
             <p>
-              Skipped the $8 coffee? Saved $40 because something went
-              on sale? Decided against a $70 impulse purchase? Put
-              that money into a pool and keep track of what those
-              decisions eventually pay for.
+              Create a pool, then add money you kept by skipping a
+              purchase, getting a discount, or a refund.
             </p>
 
             <button
               type="button"
               className="pools-primary-button"
-              onClick={() => setShowCreatePool(true)}
+              onClick={openNewPool}
             >
               Create your first pool
             </button>
@@ -709,378 +497,204 @@ function Pools() {
         ) : (
           <div className="pools-layout">
             <aside className="pools-sidebar">
-              <div className="pools-sidebar-heading">
-                <span>Your pools</span>
+              {activePools.length > 0 && (
+                <div className="pools-pool-list">
+                  {activePools.map(renderPoolRow)}
+                </div>
+              )}
 
-                <button
-                  type="button"
-                  className="pools-icon-button"
-                  onClick={() => setShowCreatePool(true)}
-                  aria-label="Create a pool"
-                >
-                  +
-                </button>
-              </div>
+              {archivedPools.length > 0 && (
+                <details className="pools-archived" open={activePools.length === 0}>
+                  <summary>Archived ({archivedPools.length})</summary>
 
-              <div className="pools-pool-list">
-                {pools.map((pool) => {
-                  const balance = getPoolBalance(pool);
-
-                  return (
-                    <button
-                      type="button"
-                      key={pool.id}
-                      className={`pools-pool-option ${
-                        pool.id === selectedPoolId
-                          ? "is-active"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedPoolId(pool.id)}
-                    >
-                      <span className="pools-pool-option-icon">
-                        $
-                      </span>
-
-                      <span className="pools-pool-option-content">
-                        <span className="pools-pool-option-name">
-                          {pool.name}
-                        </span>
-
-                        <span className="pools-pool-option-balance">
-                          {formatMoney(balance)}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                  <div className="pools-pool-list">
+                    {archivedPools.map(renderPoolRow)}
+                  </div>
+                </details>
+              )}
             </aside>
 
             {selectedPool && (
               <section className="pools-detail">
                 <div className="pools-detail-header">
-                  <div>
-                    <p className="pools-detail-label">
-                      MONEY POOL
-                    </p>
+                  <div className="pools-detail-title">
+                    <h2>{shownPool.name}</h2>
 
-                    <h2>{selectedPool.name}</h2>
+                    {isArchived && (
+                      <span className="pools-archived-badge">Archived</span>
+                    )}
 
-                    {selectedPool.description && (
+                    {shownPool.description && (
                       <p className="pools-detail-description">
-                        {selectedPool.description}
+                        {shownPool.description}
                       </p>
                     )}
                   </div>
 
                   <button
                     type="button"
-                    className="pools-delete-pool-button"
-                    onClick={handleDeletePool}
+                    className="pools-text-button"
+                    onClick={openEditPool}
+                    aria-label={`Edit pool ${shownPool.name}`}
                   >
-                    Delete pool
+                    Edit
                   </button>
                 </div>
 
                 <div className="pools-balance-card">
                   <div>
-                    <span className="pools-balance-label">
-                      Available
-                    </span>
+                    <span className="pools-balance-label">Available</span>
 
                     <div className="pools-balance">
-                      {formatMoney(getPoolBalance(selectedPool))}
+                      {formatMoney(getPoolBalance(shownPool))}
                     </div>
-
-                    <p>
-                      Built from{" "}
-                      <strong>
-                        {
-                          availableContributions.filter(
-                            (item) =>
-                              Number(item.remainingAmount) > 0
-                          ).length
-                        }
-                      </strong>{" "}
-                      currently available money sources.
-                    </p>
                   </div>
 
-                  <div className="pools-balance-actions">
-                    <button
-                      type="button"
-                      className="pools-add-button"
-                      onClick={() => setShowAddMoney(true)}
-                    >
-                      <span>+</span>
-                      Add saved money
-                    </button>
+                  {!isArchived && (
+                    <div className="pools-balance-actions">
+                      <button
+                        type="button"
+                        className="pools-add-button"
+                        onClick={() => openNewEntry("contribution")}
+                      >
+                        <span aria-hidden="true">+</span>
+                        Add money
+                      </button>
 
-                    <button
-                      type="button"
-                      className="pools-spend-button"
-                      disabled={
-                        getPoolBalance(selectedPool) <= 0
-                      }
-                      onClick={() => setShowSpendMoney(true)}
-                    >
-                      Spend from pool
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        className="pools-spend-button"
+                        disabled={getPoolBalance(shownPool) <= 0}
+                        onClick={() => openNewEntry("spending")}
+                      >
+                        Spend
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="pools-tabs">
+                <div className="pools-tabs" role="tablist">
                   <button
                     type="button"
-                    className={
-                      activeTab === "money" ? "is-active" : ""
-                    }
+                    role="tab"
+                    aria-selected={activeTab === "money"}
+                    className={activeTab === "money" ? "is-active" : ""}
                     onClick={() => setActiveTab("money")}
                   >
-                    What makes up this pool
+                    Money in ({(shownPool.contributions || []).length})
                   </button>
 
                   <button
                     type="button"
-                    className={
-                      activeTab === "spending" ? "is-active" : ""
-                    }
+                    role="tab"
+                    aria-selected={activeTab === "spending"}
+                    className={activeTab === "spending" ? "is-active" : ""}
                     onClick={() => setActiveTab("spending")}
                   >
-                    Spending history
+                    Spent ({spendingHistory.length})
                   </button>
                 </div>
 
                 {activeTab === "money" && (
                   <div className="pools-tab-content">
-                    <div className="pools-section-heading">
-                      <div>
-                        <h3>Available money</h3>
-
-                        <p>
-                          Every dollar in the pool keeps a record of
-                          where it came from.
+                    {availableContributions.length === 0 &&
+                      usedContributions.length === 0 && (
+                        <p className="pools-inner-empty">
+                          Nothing here yet. Use <strong>Add money</strong>{" "}
+                          the next time you skip a purchase or save money.
                         </p>
-                      </div>
+                      )}
 
-                      <span>
-                        {availableContributions.length}{" "}
-                        {availableContributions.length === 1
-                          ? "source"
-                          : "sources"}
-                      </span>
-                    </div>
-
-                    {availableContributions.length === 0 ? (
-                      <div className="pools-inner-empty">
-                        <div className="pools-inner-empty-icon">
-                          +
-                        </div>
-
-                        <h4>Nothing in this pool yet.</h4>
-
-                        <p>
-                          Add money the next time you skip a purchase,
-                          get a discount, receive a refund, or
-                          otherwise save money.
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={() => setShowAddMoney(true)}
-                        >
-                          Add saved money
-                        </button>
-                      </div>
-                    ) : (
+                    {availableContributions.length > 0 && (
                       <div className="pools-source-list">
-                        {availableContributions.map(
-                          (contribution) => {
-                            const originalAmount = Number(
-                              contribution.originalAmount || 0
-                            );
+                        {availableContributions.map((contribution) => {
+                          const amountUsed = getAmountUsed(contribution);
 
-                            const remainingAmount = Number(
-                              contribution.remainingAmount || 0
-                            );
+                          return (
+                            <article
+                              key={contribution.id}
+                              className="pools-source-card"
+                            >
+                              <div className="pools-source-card-top">
+                                <div className="pools-source-icon" aria-hidden="true">
+                                  {getSourceIcon(contribution.type)}
+                                </div>
 
-                            const amountUsed =
-                              originalAmount - remainingAmount;
+                                <div className="pools-source-main">
+                                  <h4>{contribution.title}</h4>
 
-                            const percentRemaining =
-                              originalAmount > 0
-                                ? Math.max(
-                                    0,
-                                    Math.min(
-                                      100,
-                                      (remainingAmount /
-                                        originalAmount) *
-                                        100
-                                    )
-                                  )
-                                : 0;
-
-                            return (
-                              <article
-                                key={contribution.id}
-                                className="pools-source-card"
-                              >
-                                <div className="pools-source-card-top">
-                                  <div className="pools-source-icon">
-                                    {contribution.type ===
-                                    "discount"
-                                      ? "%"
-                                      : contribution.type ===
-                                        "refund"
-                                      ? "↩"
-                                      : contribution.type ===
-                                        "skipped"
-                                      ? "×"
-                                      : "$"}
+                                  <div className="pools-source-meta">
+                                    {getContributionLabel(contribution.type)} ·{" "}
+                                    {formatDate(contribution.date)}
                                   </div>
 
-                                  <div className="pools-source-main">
-                                    <div className="pools-source-title-row">
-                                      <div>
-                                        <h4>
-                                          {contribution.title}
-                                        </h4>
+                                  {contribution.note && (
+                                    <p className="pools-source-note">
+                                      {contribution.note}
+                                    </p>
+                                  )}
+                                </div>
 
-                                        <div className="pools-source-meta">
-                                          <span className="pools-source-type">
-                                            {getContributionLabel(
-                                              contribution.type
-                                            )}
-                                          </span>
+                                <div className="pools-source-money">
+                                  <strong>
+                                    {formatMoney(contribution.remainingAmount)}
+                                  </strong>
 
-                                          <span>
-                                            {formatDate(
-                                              contribution.date
-                                            )}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      <div className="pools-source-money">
-                                        <strong>
-                                          {formatMoney(
-                                            remainingAmount
-                                          )}
-                                        </strong>
-
-                                        {amountUsed > 0 && (
-                                          <span>
-                                            of{" "}
-                                            {formatMoney(
-                                              originalAmount
-                                            )}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {contribution.note && (
-                                      <p className="pools-source-note">
-                                        {contribution.note}
-                                      </p>
-                                    )}
-
-                                    {amountUsed > 0 && (
-                                      <div className="pools-source-progress">
-                                        <div className="pools-progress-track">
-                                          <div
-                                            className="pools-progress-fill"
-                                            style={{
-                                              width: `${percentRemaining}%`,
-                                            }}
-                                          />
-                                        </div>
-
-                                        <div className="pools-progress-details">
-                                          <span>
-                                            {formatMoney(
-                                              remainingAmount
-                                            )}{" "}
-                                            remaining
-                                          </span>
-
-                                          <span>
-                                            {formatMoney(amountUsed)}{" "}
-                                            already used
-                                          </span>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
+                                  {amountUsed > 0 && (
+                                    <span>
+                                      of {formatMoney(contribution.originalAmount)}
+                                    </span>
+                                  )}
 
                                   <button
                                     type="button"
-                                    className="pools-source-delete"
+                                    className="pools-text-button"
                                     onClick={() =>
-                                      handleDeleteContribution(
-                                        contribution.id
-                                      )
+                                      openEditEntry("contribution", contribution)
                                     }
-                                    aria-label={`Delete ${contribution.title}`}
+                                    aria-label={`Edit ${contribution.title}`}
                                   >
-                                    ×
+                                    Edit
                                   </button>
                                 </div>
-                              </article>
-                            );
-                          }
-                        )}
+                              </div>
+                            </article>
+                          );
+                        })}
                       </div>
                     )}
 
                     {usedContributions.length > 0 && (
                       <div className="pools-used-section">
-                        <div className="pools-section-heading">
-                          <div>
-                            <h3>Fully used</h3>
-
-                            <p>
-                              Money sources that have completely
-                              funded later purchases.
-                            </p>
-                          </div>
-                        </div>
+                        <h3 className="pools-small-heading">Fully used</h3>
 
                         <div className="pools-used-list">
-                          {usedContributions.map(
-                            (contribution) => (
-                              <div
-                                key={contribution.id}
-                                className="pools-used-row"
-                              >
-                                <div>
-                                  <strong>
-                                    {contribution.title}
-                                  </strong>
+                          {usedContributions.map((contribution) => (
+                            <div
+                              key={contribution.id}
+                              className="pools-used-row"
+                            >
+                              <div>
+                                <strong>{contribution.title}</strong>
 
-                                  <span>
-                                    {getContributionLabel(
-                                      contribution.type
-                                    )}{" "}
-                                    ·{" "}
-                                    {formatDate(
-                                      contribution.date
-                                    )}
-                                  </span>
-                                </div>
-
-                                <div className="pools-used-amount">
-                                  <span>
-                                    {formatMoney(
-                                      contribution.originalAmount
-                                    )}
-                                  </span>
-
-                                  <small>fully used</small>
-                                </div>
+                                <span>
+                                  {formatMoney(contribution.originalAmount)} ·{" "}
+                                  {formatDate(contribution.date)}
+                                </span>
                               </div>
-                            )
-                          )}
+
+                              <button
+                                type="button"
+                                className="pools-text-button"
+                                onClick={() =>
+                                  openEditEntry("contribution", contribution)
+                                }
+                                aria-label={`Edit ${contribution.title}`}
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -1089,38 +703,10 @@ function Pools() {
 
                 {activeTab === "spending" && (
                   <div className="pools-tab-content">
-                    <div className="pools-section-heading">
-                      <div>
-                        <h3>What this pool paid for</h3>
-
-                        <p>
-                          Each purchase shows the saved-money
-                          decisions that funded it.
-                        </p>
-                      </div>
-
-                      <span>
-                        {spendingHistory.length}{" "}
-                        {spendingHistory.length === 1
-                          ? "purchase"
-                          : "purchases"}
-                      </span>
-                    </div>
-
                     {spendingHistory.length === 0 ? (
-                      <div className="pools-inner-empty">
-                        <div className="pools-inner-empty-icon">
-                          $
-                        </div>
-
-                        <h4>No pool spending yet.</h4>
-
-                        <p>
-                          When you buy something using this pool,
-                          you&apos;ll be able to see exactly which
-                          savings funded it.
-                        </p>
-                      </div>
+                      <p className="pools-inner-empty">
+                        No spending from this pool yet.
+                      </p>
                     ) : (
                       <div className="pools-spending-list">
                         {spendingHistory.map((transaction) => (
@@ -1130,68 +716,60 @@ function Pools() {
                           >
                             <div className="pools-spending-header">
                               <div>
+                                <h4>{transaction.title}</h4>
+
                                 <span className="pools-spending-date">
                                   {formatDate(transaction.date)}
                                 </span>
 
-                                <h4>{transaction.title}</h4>
-
-                                {transaction.note && (
-                                  <p>{transaction.note}</p>
-                                )}
+                                {transaction.note && <p>{transaction.note}</p>}
                               </div>
 
-                              <div className="pools-spending-amount">
-                                -{formatMoney(transaction.amount)}
+                              <div className="pools-spending-side">
+                                <span className="pools-spending-amount">
+                                  -{formatMoney(transaction.amount)}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  className="pools-text-button"
+                                  onClick={() =>
+                                    openEditEntry("spending", transaction)
+                                  }
+                                  aria-label={`Edit ${transaction.title}`}
+                                >
+                                  Edit
+                                </button>
                               </div>
                             </div>
 
-                            <div className="pools-funded-by">
-                              <span className="pools-funded-label">
-                                Funded by
-                              </span>
+                            {transaction.fundingSources?.length > 0 && (
+                              <details className="pools-funded-by">
+                                <summary>
+                                  Funded by {transaction.fundingSources.length}{" "}
+                                  {transaction.fundingSources.length === 1
+                                    ? "entry"
+                                    : "entries"}
+                                </summary>
 
-                              <div className="pools-funding-list">
-                                {transaction.fundingSources?.map(
-                                  (source, index) => (
-                                    <div
-                                      className="pools-funding-row"
-                                      key={`${transaction.id}-${source.contributionId}-${index}`}
-                                    >
-                                      <div>
-                                        <span className="pools-funding-dot" />
+                                <div className="pools-funding-list">
+                                  {transaction.fundingSources.map(
+                                    (source, index) => (
+                                      <div
+                                        className="pools-funding-row"
+                                        key={`${transaction.id}-${source.contributionId}-${index}`}
+                                      >
+                                        <span>{source.title}</span>
 
-                                        <span>
-                                          {source.title}
-                                        </span>
+                                        <strong>
+                                          {formatMoney(source.amount)}
+                                        </strong>
                                       </div>
-
-                                      <strong>
-                                        {formatMoney(source.amount)}
-                                      </strong>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="pools-spending-footer">
-                              <span>
-                                Recorded{" "}
-                                {formatDateTime(
-                                  transaction.createdAt
-                                )}
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleUndoSpend(transaction.id)
-                                }
-                              >
-                                Undo spending
-                              </button>
-                            </div>
+                                    )
+                                  )}
+                                </div>
+                              </details>
+                            )}
                           </article>
                         ))}
                       </div>
@@ -1204,294 +782,273 @@ function Pools() {
         )}
       </div>
 
-      {showCreatePool && (
+      {showHelp && (
         <div
           className="pools-modal-backdrop"
-          onMouseDown={() => setShowCreatePool(false)}
+          onMouseDown={() => setShowHelp(false)}
         >
           <div
             className="pools-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pools-help-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="pools-modal-heading">
-              <div>
-                <p>NEW POOL</p>
-                <h2>Create a money pool</h2>
-              </div>
+              <h2 id="pools-help-title">How pools work</h2>
 
               <button
                 type="button"
-                onClick={() => setShowCreatePool(false)}
+                onClick={() => setShowHelp(false)}
                 aria-label="Close"
               >
                 ×
               </button>
             </div>
 
-            <p className="pools-modal-description">
-              Pools can represent anything you want: guilt-free
-              spending, travel, tech, eating out, hobbies, or simply
-              money you saved by making better decisions.
-            </p>
+            <ul className="pools-help-list">
+              <li>
+                A pool is a bucket for money you kept: a skipped purchase,
+                a discount, a refund, or extra money.
+              </li>
+              <li>
+                <strong>Add money</strong> records each amount and where
+                it came from.
+              </li>
+              <li>
+                <strong>Spend</strong> uses the oldest money first. Whatever
+                isn&apos;t needed from an entry stays available.
+              </li>
+              <li>
+                Balances are calculated from entries, so you can&apos;t type
+                one in. To fix a balance, tap <strong>Edit</strong> on the
+                entry that&apos;s wrong.
+              </li>
+              <li>
+                Pools are separate from your expenses. Spending from a pool
+                doesn&apos;t add an expense.
+              </li>
+              <li>
+                Archiving a pool hides it but keeps its history. Pools are
+                saved on this device and included in backups.
+              </li>
+            </ul>
 
-            <form onSubmit={handleCreatePool}>
+            <div className="pools-modal-actions">
+              <button
+                type="button"
+                className="pools-primary-button"
+                onClick={() => setShowHelp(false)}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {poolForm && (
+        <div
+          className="pools-modal-backdrop"
+          onMouseDown={() => setPoolForm(null)}
+        >
+          <div
+            className="pools-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pools-pool-form-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="pools-modal-heading">
+              <h2 id="pools-pool-form-title">
+                {poolForm.id ? "Edit pool" : "New pool"}
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => setPoolForm(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePool} noValidate>
               <label className="pools-field">
                 <span>Pool name</span>
 
                 <input
                   type="text"
-                  value={newPoolName}
+                  value={poolForm.name}
                   onChange={(event) =>
-                    setNewPoolName(event.target.value)
+                    setPoolForm({ ...poolForm, name: event.target.value, error: "" })
                   }
                   placeholder="e.g. Fun Money"
-                  autoFocus
+                  autoFocus={!poolForm.id}
                 />
               </label>
 
               <label className="pools-field">
-                <span>Description</span>
+                <span>
+                  Description <small>optional</small>
+                </span>
 
                 <textarea
-                  value={newPoolDescription}
+                  value={poolForm.description}
                   onChange={(event) =>
-                    setNewPoolDescription(event.target.value)
+                    setPoolForm({ ...poolForm, description: event.target.value })
                   }
                   placeholder="What is this money for?"
-                  rows={3}
+                  rows={2}
                 />
               </label>
 
+              {poolForm.error && (
+                <p className="pools-form-error" role="alert">
+                  {poolForm.error}
+                </p>
+              )}
+
               <div className="pools-modal-actions">
                 <button
                   type="button"
                   className="pools-secondary-button"
-                  onClick={() => setShowCreatePool(false)}
+                  onClick={() => setPoolForm(null)}
                 >
                   Cancel
                 </button>
 
-                <button
-                  type="submit"
-                  className="pools-primary-button"
-                  disabled={!newPoolName.trim()}
-                >
-                  Create pool
+                <button type="submit" className="pools-primary-button">
+                  {poolForm.id ? "Save" : "Create pool"}
                 </button>
               </div>
             </form>
+
+            {poolForm.id && (() => {
+              const pool = pools.find((item) => item.id === poolForm.id);
+
+              if (!pool) {
+                return null;
+              }
+
+              return (
+                <div className="pools-danger-zone">
+                  {pool.archivedAt ? (
+                    <>
+                      <button
+                        type="button"
+                        className="pools-secondary-button"
+                        onClick={() => setArchived(pool, false)}
+                      >
+                        Restore pool
+                      </button>
+
+                      <button
+                        type="button"
+                        className="pools-danger-button"
+                        onClick={() => handleDeletePool(pool)}
+                      >
+                        Delete permanently
+                      </button>
+                    </>
+                  ) : hasHistory(pool) ? (
+                    <>
+                      <button
+                        type="button"
+                        className="pools-danger-button"
+                        onClick={() => setArchived(pool, true)}
+                      >
+                        Archive pool
+                      </button>
+
+                      <p>
+                        This pool has history, so it&apos;s archived instead
+                        of deleted. You can restore it later.
+                      </p>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="pools-danger-button"
+                      onClick={() => handleDeletePool(pool)}
+                    >
+                      Delete pool
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
 
-      {showAddMoney && selectedPool && (
+      {entryForm && selectedPool && (
         <div
           className="pools-modal-backdrop"
-          onMouseDown={() => setShowAddMoney(false)}
+          onMouseDown={() => setEntryForm(null)}
         >
           <div
             className="pools-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pools-entry-form-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="pools-modal-heading">
               <div>
-                <p>ADD TO {selectedPool.name.toUpperCase()}</p>
-                <h2>Where did you save money?</h2>
+                <p>{shownPool.name}</p>
+
+                <h2 id="pools-entry-form-title">
+                  {entryForm.kind === "contribution"
+                    ? entryForm.id
+                      ? "Edit money in"
+                      : "Add money"
+                    : entryForm.id
+                      ? "Edit spending"
+                      : "Spend from pool"}
+                </h2>
               </div>
 
               <button
                 type="button"
-                onClick={() => setShowAddMoney(false)}
+                onClick={() => setEntryForm(null)}
                 aria-label="Close"
               >
                 ×
               </button>
             </div>
 
-            <p className="pools-modal-description">
-              Capture the decision that left this money in your
-              pocket.
-            </p>
+            {entryForm.kind === "spending" && spendTargetPool && (
+              <div className="pools-spend-available">
+                <span>Available in {spendTargetPool.name}</span>
+                <strong>{formatMoney(spendAvailable)}</strong>
+              </div>
+            )}
 
-            <form onSubmit={handleAddContribution}>
+            <form onSubmit={handleSaveEntry} noValidate>
               <div className="pools-field-grid">
-                <label className="pools-field pools-field-wide">
-                  <span>What happened?</span>
-
-                  <input
-                    type="text"
-                    value={contributionForm.title}
-                    onChange={(event) =>
-                      setContributionForm((current) => ({
-                        ...current,
-                        title: event.target.value,
-                      }))
-                    }
-                    placeholder="e.g. Didn't order DoorDash"
-                    autoFocus
-                  />
-                </label>
-
-                <label className="pools-field">
-                  <span>Amount saved</span>
-
-                  <div className="pools-money-input">
-                    <span>$</span>
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={contributionForm.amount}
-                      onChange={(event) =>
-                        setContributionForm((current) => ({
-                          ...current,
-                          amount: event.target.value,
-                        }))
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-                </label>
-
-                <label className="pools-field">
-                  <span>Type</span>
-
-                  <select
-                    value={contributionForm.type}
-                    onChange={(event) =>
-                      setContributionForm((current) => ({
-                        ...current,
-                        type: event.target.value,
-                      }))
-                    }
-                  >
-                    {CONTRIBUTION_TYPES.map((type) => (
-                      <option
-                        key={type.value}
-                        value={type.value}
-                      >
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="pools-field">
-                  <span>Date</span>
-
-                  <input
-                    type="date"
-                    value={contributionForm.date}
-                    onChange={(event) =>
-                      setContributionForm((current) => ({
-                        ...current,
-                        date: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-
                 <label className="pools-field pools-field-wide">
                   <span>
-                    Note{" "}
-                    <small>optional</small>
+                    {entryForm.kind === "contribution"
+                      ? "What happened?"
+                      : "What did you buy?"}
                   </span>
-
-                  <textarea
-                    rows={3}
-                    value={contributionForm.note}
-                    onChange={(event) =>
-                      setContributionForm((current) => ({
-                        ...current,
-                        note: event.target.value,
-                      }))
-                    }
-                    placeholder="Anything you want to remember about this decision."
-                  />
-                </label>
-              </div>
-
-              <div className="pools-modal-actions">
-                <button
-                  type="button"
-                  className="pools-secondary-button"
-                  onClick={() => setShowAddMoney(false)}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="pools-primary-button"
-                  disabled={
-                    !contributionForm.title.trim() ||
-                    !contributionForm.amount ||
-                    Number(contributionForm.amount) <= 0
-                  }
-                >
-                  Add to pool
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showSpendMoney && selectedPool && (
-        <div
-          className="pools-modal-backdrop"
-          onMouseDown={() => setShowSpendMoney(false)}
-        >
-          <div
-            className="pools-modal"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="pools-modal-heading">
-              <div>
-                <p>SPEND FROM {selectedPool.name.toUpperCase()}</p>
-                <h2>Use money from this pool</h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowSpendMoney(false)}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="pools-spend-available">
-              <span>Available to spend</span>
-
-              <strong>
-                {formatMoney(getPoolBalance(selectedPool))}
-              </strong>
-            </div>
-
-            <form onSubmit={handleSpendFromPool}>
-              <div className="pools-field-grid">
-                <label className="pools-field pools-field-wide">
-                  <span>What did you buy?</span>
 
                   <input
                     type="text"
-                    value={spendForm.title}
-                    onChange={(event) =>
-                      setSpendForm((current) => ({
-                        ...current,
-                        title: event.target.value,
-                      }))
+                    value={entryForm.title}
+                    onChange={updateEntryField("title")}
+                    placeholder={
+                      entryForm.kind === "contribution"
+                        ? "e.g. Skipped takeout"
+                        : "e.g. New headphones"
                     }
-                    placeholder="e.g. New headphones"
-                    autoFocus
+                    autoFocus={!entryForm.id}
                   />
                 </label>
 
                 <label className="pools-field">
-                  <span>Purchase amount</span>
+                  <span>Amount</span>
 
                   <div className="pools-money-input">
                     <span>$</span>
@@ -1499,16 +1056,10 @@ function Pools() {
                     <input
                       type="number"
                       min="0"
-                      max={getPoolBalance(selectedPool)}
                       step="0.01"
                       inputMode="decimal"
-                      value={spendForm.amount}
-                      onChange={(event) =>
-                        setSpendForm((current) => ({
-                          ...current,
-                          amount: event.target.value,
-                        }))
-                      }
+                      value={entryForm.amount}
+                      onChange={updateEntryField("amount")}
                       placeholder="0.00"
                     />
                   </div>
@@ -1519,15 +1070,50 @@ function Pools() {
 
                   <input
                     type="date"
-                    value={spendForm.date}
-                    onChange={(event) =>
-                      setSpendForm((current) => ({
-                        ...current,
-                        date: event.target.value,
-                      }))
-                    }
+                    value={entryForm.date}
+                    onChange={updateEntryField("date")}
                   />
                 </label>
+
+                {entryForm.kind === "contribution" && (
+                  <label className="pools-field">
+                    <span>Type</span>
+
+                    <select
+                      value={entryForm.type}
+                      onChange={updateEntryField("type")}
+                    >
+                      {CONTRIBUTION_TYPES.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {entryForm.id && activePools.length > 1 && (
+                  <label className="pools-field">
+                    <span>Pool</span>
+
+                    <select
+                      value={entryForm.poolId}
+                      onChange={updateEntryField("poolId")}
+                      disabled={usedAmount > 0}
+                    >
+                      {pools
+                        .filter(
+                          (pool) =>
+                            !pool.archivedAt || pool.id === shownPool.id
+                        )
+                        .map((pool) => (
+                          <option key={pool.id} value={pool.id}>
+                            {pool.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
 
                 <label className="pools-field pools-field-wide">
                   <span>
@@ -1535,74 +1121,79 @@ function Pools() {
                   </span>
 
                   <textarea
-                    rows={3}
-                    value={spendForm.note}
-                    onChange={(event) =>
-                      setSpendForm((current) => ({
-                        ...current,
-                        note: event.target.value,
-                      }))
-                    }
-                    placeholder="Why did you decide to use the pool for this?"
+                    rows={2}
+                    value={entryForm.note}
+                    onChange={updateEntryField("note")}
                   />
                 </label>
               </div>
 
-              {Number(spendForm.amount) > 0 &&
-                Number(spendForm.amount) <=
-                  getPoolBalance(selectedPool) && (
-                  <div className="pools-spend-preview">
-                    <span>After this purchase</span>
-
-                    <div>
-                      <strong>
-                        {formatMoney(
-                          getPoolBalance(selectedPool) -
-                            Number(spendForm.amount)
-                        )}
-                      </strong>
-
-                      <small>
-                        will remain in {selectedPool.name}
-                      </small>
-                    </div>
-                  </div>
-                )}
-
-              <div className="pools-consumption-note">
-                <strong>How funding is chosen</strong>
-
-                <p>
-                  This purchase will use the oldest available money
-                  in this pool first. If only part of a saved-money
-                  entry is needed, the remainder stays available.
+              {usedAmount > 0 && (
+                <p className="pools-form-hint">
+                  {formatMoney(usedAmount)} of this already paid for
+                  spending, so the amount can&apos;t go below that and it
+                  can&apos;t move to another pool.
                 </p>
-              </div>
+              )}
+
+              {entryForm.kind === "spending" && entryForm.id && (
+                <p className="pools-form-hint">
+                  Changing the amount or pool re-funds this purchase from
+                  the oldest available money.
+                </p>
+              )}
+
+              {entryForm.error && (
+                <p className="pools-form-error" role="alert">
+                  {entryForm.error}
+                </p>
+              )}
 
               <div className="pools-modal-actions">
                 <button
                   type="button"
                   className="pools-secondary-button"
-                  onClick={() => setShowSpendMoney(false)}
+                  onClick={() => setEntryForm(null)}
                 >
                   Cancel
                 </button>
 
-                <button
-                  type="submit"
-                  className="pools-primary-button"
-                  disabled={
-                    !spendForm.title.trim() ||
-                    !spendForm.amount ||
-                    Number(spendForm.amount) <= 0 ||
-                    Number(spendForm.amount) >
-                      getPoolBalance(selectedPool)
-                  }
-                >
-                  Spend from pool
+                <button type="submit" className="pools-primary-button">
+                  {entryForm.id
+                    ? "Save"
+                    : entryForm.kind === "contribution"
+                      ? "Add to pool"
+                      : "Spend from pool"}
                 </button>
               </div>
             </form>
+
+            {entryForm.id && (
+              <div className="pools-danger-zone">
+                {entryForm.kind === "spending" ? (
+                  <button
+                    type="button"
+                    className="pools-danger-button"
+                    onClick={handleRemoveEntry}
+                  >
+                    Undo spending
+                  </button>
+                ) : usedAmount > 0 ? (
+                  <p>
+                    To delete this entry, first undo the spending it paid
+                    for.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    className="pools-danger-button"
+                    onClick={handleRemoveEntry}
+                  >
+                    Delete entry
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
