@@ -344,3 +344,45 @@ export function findBrand(description) {
   );
 
 }
+
+
+// ---------------------------------------------------------
+// LOGO SIZING
+// ---------------------------------------------------------
+
+// Logos range from square icons to wide wordmarks. Sizing by
+// area instead of bounding box makes them look equally heavy;
+// the caps keep wide or tall ones inside the round chip.
+// Sizes are fractions of the chip, so any chip size works.
+const LOGO_SIDE = 0.65;
+const LOGO_MAX_WIDTH = 0.86;
+const LOGO_MAX_HEIGHT = 0.72;
+
+// ratio = logo width / height. Returns CSS percentages.
+export function logoBox(ratio, scale = 1) {
+
+  const side =
+    LOGO_SIDE * scale;
+
+  let width =
+    side * Math.sqrt(ratio);
+
+  let height =
+    width / ratio;
+
+  if (width > LOGO_MAX_WIDTH) {
+    width = LOGO_MAX_WIDTH;
+    height = width / ratio;
+  }
+
+  if (height > LOGO_MAX_HEIGHT) {
+    height = LOGO_MAX_HEIGHT;
+    width = height * ratio;
+  }
+
+  return {
+    width: `${(width * 100).toFixed(1)}%`,
+    height: `${(height * 100).toFixed(1)}%`,
+  };
+
+}

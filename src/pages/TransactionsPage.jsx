@@ -14,6 +14,10 @@ import {
 } from "../utils/brandLogos";
 
 import {
+  logoBox,
+} from "../utils/brands";
+
+import {
   getSetting,
   setSetting,
 } from "../data/storage";
@@ -540,6 +544,11 @@ function ChevronIcon({
 // ROW ICON: BRAND LOGO OR CATEGORY ICON
 // ======================================================
 
+// Logo URL -> width / height, so remounted rows size instantly.
+const logoRatios =
+  new Map();
+
+
 function ExpenseIcon({
   category,
   categoryType,
@@ -551,6 +560,30 @@ function ExpenseIcon({
     setLogoFailed,
   ] = useState(false);
 
+  const [
+    logoRatio,
+    setLogoRatio,
+  ] = useState(() =>
+    logoRatios.get(brandLogo?.src)
+  );
+
+
+  if (brandLogo?.monogram) {
+
+    return (
+
+      <div
+        className="tx-category-icon tx-brand-icon tx-brand-monogram"
+        style={{ color: brandLogo.color }}
+        data-length={brandLogo.monogram.length}
+      >
+        {brandLogo.monogram}
+      </div>
+
+    );
+
+  }
+
 
   if (
     brandLogo &&
@@ -559,12 +592,37 @@ function ExpenseIcon({
 
     return (
 
-      <div className="tx-category-icon tx-brand-icon">
+      <div
+        className="tx-category-icon tx-brand-icon"
+        style={
+          brandLogo.background
+            ? { background: brandLogo.background }
+            : undefined
+        }
+      >
 
         <img
-          src={brandLogo}
+          src={brandLogo.src}
           alt=""
           loading="lazy"
+          style={
+            logoRatio
+              ? logoBox(logoRatio, brandLogo.scale)
+              : { visibility: "hidden" }
+          }
+          onLoad={(event) => {
+
+            const image =
+              event.currentTarget;
+
+            const ratio =
+              image.naturalWidth / image.naturalHeight || 1;
+
+            logoRatios.set(brandLogo.src, ratio);
+
+            setLogoRatio(ratio);
+
+          }}
           onError={() =>
             setLogoFailed(true)
           }
@@ -1522,7 +1580,7 @@ export default function TransactionsPage({
 
                             <ExpenseIcon
                               key={
-                                brandLogo ||
+                                brandLogo?.src ||
                                 "category"
                               }
                               category={

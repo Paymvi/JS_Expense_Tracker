@@ -9121,11 +9121,11 @@ body:has(.tx-page) .app {
 
 
 /* Brand logos sit on a white chip so they read on any
-   background; contain keeps each logo's aspect ratio. */
+   background. The <img> gets an inline width/height from
+   logoBox() (area-based, so wordmarks and icons look the same
+   size); contain keeps the aspect ratio exact. */
 
 .tx-category-icon.tx-brand-icon {
-  padding: 6px;
-
   overflow: hidden;
 
   background: #ffffff;
@@ -9135,10 +9135,19 @@ body:has(.tx-page) .app {
 }
 
 .tx-brand-icon img {
-  width: 100%;
-  height: 100%;
-
   display: block;
 
   object-fit: contain;
+}
+
+/* Initials for brands whose only logo is a very wide wordmark. */
+.tx-brand-monogram {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.tx-brand-monogram[data-length="3"] {
+  font-size: 14px;
 }

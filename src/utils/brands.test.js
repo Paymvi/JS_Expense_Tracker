@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   BRANDS,
   findBrand,
+  logoBox,
 } from "./brands.js";
 
 
@@ -224,5 +225,26 @@ test("every brand has a unique id and a bundled logo", () => {
   for (const id of logoIds) {
     assert.ok(ids.includes(id), `logo ${id} has no registry entry`);
   }
+
+});
+
+
+test("logo sizing keeps area even and stays inside the chip", () => {
+
+  const pct = (box) => [parseFloat(box.width), parseFloat(box.height)];
+
+  assert.deepEqual(pct(logoBox(1)), [65, 65]);
+
+  // A 3:2 logo gets the same area as a square one.
+  const [w2, h2] = pct(logoBox(1.5));
+  assert.ok(Math.abs(w2 * h2 - 65 * 65) < 10);
+
+  // Very wide and very tall logos hit the caps, ratio intact.
+  const [w10, h10] = pct(logoBox(10));
+  assert.equal(w10, 86);
+  assert.ok(Math.abs(w10 / h10 - 10) < 0.1);
+  assert.equal(pct(logoBox(0.3))[1], 72);
+
+  assert.deepEqual(pct(logoBox(1, 0.9)), [58.5, 58.5]);
 
 });
