@@ -69,6 +69,15 @@ function normalizeCategory(
   }
 
 
+  if (
+    normalized.includes(
+      "gift"
+    )
+  ) {
+    return "gifts";
+  }
+
+
   // Older entries saved as "Food" keep their look.
   if (
     normalized.includes(
@@ -221,6 +230,62 @@ function CategoryIcon({
             M19.5 3.5
             V7.5
             H15.5
+          "
+        />
+
+      </svg>
+
+    );
+
+  }
+
+
+  // ------------------------------------------------------
+  // GIFTS
+  // ------------------------------------------------------
+
+  if (
+    normalized === "gifts"
+  ) {
+
+    return (
+
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+
+        <path
+          d="
+            M4 8.5
+            H20
+            V12
+            H4
+            Z
+
+            M5.5 12
+            V20
+            H18.5
+            V12
+
+            M12 8.5
+            V20
+
+            M12 8.5
+            C10.5 5
+            7 4.5
+            7.5 7
+            C7.8 8.2
+            10 8.5
+            12 8.5
+
+            M12 8.5
+            C13.5 5
+            17 4.5
+            16.5 7
+            C16.2 8.2
+            14 8.5
+            12 8.5
           "
         />
 

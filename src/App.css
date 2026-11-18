@@ -6793,6 +6793,12 @@ move the category into the first metadata position.
   color: #2b7a74;
 }
 
+.tx-category-icon.tx-category-gifts {
+  background: #f6e6f3;
+
+  color: #94457f;
+}
+
 .tx-category-icon.tx-category-shopping {
   background: #fbe8e1;
 
@@ -6934,6 +6940,12 @@ move the category into the first metadata position.
   background: #dff0ef;
 
   color: #337571;
+}
+
+.tx-category-pill.tx-category-gifts {
+  background: #f5e5f1;
+
+  color: #8c4c7b;
 }
 
 .tx-category-pill.tx-category-shopping {

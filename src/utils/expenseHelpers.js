@@ -16,6 +16,7 @@ export const EXPENSE_CATEGORIES = [
   "Bills",
   "Subscriptions",
   "Entertainment",
+  "Gifts",
   "Other",
 ];
 
