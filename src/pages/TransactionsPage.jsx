@@ -44,6 +44,34 @@ function normalizeCategory(
 
   if (
     normalized.includes(
+      "grocer"
+    )
+  ) {
+    return "groceries";
+  }
+
+
+  if (
+    normalized.includes(
+      "dining"
+    )
+  ) {
+    return "dining";
+  }
+
+
+  if (
+    normalized.includes(
+      "subscri"
+    )
+  ) {
+    return "subscriptions";
+  }
+
+
+  // Older entries saved as "Food" keep their look.
+  if (
+    normalized.includes(
       "food"
     )
   ) {
@@ -128,11 +156,88 @@ function CategoryIcon({
 
 
   // ------------------------------------------------------
-  // FOOD
+  // GROCERIES
   // ------------------------------------------------------
 
   if (
-    normalized === "food"
+    normalized === "groceries"
+  ) {
+
+    return (
+
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+
+        <path
+          d="
+            M4 9
+            H20
+            L18.2 19
+            H5.8
+            Z
+
+            M9 9
+            L12 4
+            L15 9
+
+            M9.5 13
+            V16
+
+            M14.5 13
+            V16
+          "
+        />
+
+      </svg>
+
+    );
+
+  }
+
+
+  // ------------------------------------------------------
+  // SUBSCRIPTIONS
+  // ------------------------------------------------------
+
+  if (
+    normalized === "subscriptions"
+  ) {
+
+    return (
+
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+
+        <path
+          d="
+            M19.5 12
+            A7.5 7.5 0 1 1
+            17.3 6.7
+
+            M19.5 3.5
+            V7.5
+            H15.5
+          "
+        />
+
+      </svg>
+
+    );
+
+  }
+
+
+  // ------------------------------------------------------
+  // FOOD / DINING OUT
+  // ------------------------------------------------------
+
+  if (
+    normalized === "food" ||
+    normalized === "dining"
   ) {
 
     return (
@@ -247,23 +352,15 @@ function CategoryIcon({
 
         <path
           d="
-            M4 9
-            L14.5 3
+            M3.5 6
+            H20.5
+            V18
+            H3.5
+            Z
 
-            L20 8.5
-
-            C18.6 9.9
-            18.6 12.1
-            20 13.5
-
-            L9.5 20
-
-            L4 14.5
-
-            C5.4 13.1
-            5.4 10.9
-            4 9
-
+            M10 9.2
+            L15 12
+            L10 14.8
             Z
           "
         />

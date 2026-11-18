@@ -9,10 +9,12 @@
 // ---------------------------------------------------------
 
 export const EXPENSE_CATEGORIES = [
-  "Food",
+  "Groceries",
+  "Dining Out",
   "Transportation",
   "Shopping",
   "Bills",
+  "Subscriptions",
   "Entertainment",
   "Other",
 ];
