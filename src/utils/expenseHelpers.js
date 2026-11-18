@@ -21,6 +21,148 @@ export const EXPENSE_CATEGORIES = [
 ];
 
 
+// Groups any category label (including old ones like "Food")
+// into the type that picks its icon and color.
+export function normalizeCategory(
+  category
+) {
+
+  const normalized =
+    String(
+      category || "Other"
+    )
+      .trim()
+      .toLowerCase();
+
+
+  if (
+    normalized.includes(
+      "grocer"
+    )
+  ) {
+    return "groceries";
+  }
+
+
+  if (
+    normalized.includes(
+      "dining"
+    )
+  ) {
+    return "dining";
+  }
+
+
+  if (
+    normalized.includes(
+      "subscri"
+    )
+  ) {
+    return "subscriptions";
+  }
+
+
+  if (
+    normalized.includes(
+      "gift"
+    )
+  ) {
+    return "gifts";
+  }
+
+
+  // Older entries saved as "Food" keep their look.
+  if (
+    normalized.includes(
+      "food"
+    )
+  ) {
+    return "food";
+  }
+
+
+  if (
+    normalized.includes(
+      "shop"
+    )
+  ) {
+    return "shopping";
+  }
+
+
+  if (
+    normalized.includes(
+      "entertain"
+    )
+  ) {
+    return "entertainment";
+  }
+
+
+  if (
+    normalized.includes(
+      "transport"
+    ) ||
+    normalized.includes(
+      "gas"
+    ) ||
+    normalized.includes(
+      "car"
+    )
+  ) {
+    return "transport";
+  }
+
+
+  if (
+    normalized.includes(
+      "bill"
+    ) ||
+    normalized.includes(
+      "utility"
+    )
+  ) {
+    return "bills";
+  }
+
+
+  if (
+    normalized.includes(
+      "health"
+    ) ||
+    normalized.includes(
+      "medical"
+    )
+  ) {
+    return "health";
+  }
+
+
+  return "other";
+
+}
+
+
+// Chart colors, matching the category icon colors in App.css.
+const CATEGORY_COLORS = {
+  groceries: "#267653",
+  food: "#267653",
+  dining: "#a8611c",
+  transport: "#426d94",
+  shopping: "#a54f3e",
+  bills: "#947235",
+  subscriptions: "#2b7a74",
+  entertainment: "#6c4a9d",
+  gifts: "#94457f",
+  health: "#a64e5e",
+  other: "#68756c",
+};
+
+export function getCategoryColor(category) {
+  return CATEGORY_COLORS[normalizeCategory(category)];
+}
+
+
 // ---------------------------------------------------------
 // CURRENCY
 // ---------------------------------------------------------

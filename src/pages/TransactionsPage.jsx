@@ -6,6 +6,7 @@ import {
 
 import {
   formatCurrency,
+  normalizeCategory,
   parseExpenseDate,
 } from "../utils/expenseHelpers";
 
@@ -25,129 +26,6 @@ import {
 import ImportExportControls
   from "../components/ImportExportControls";
 
-
-// ======================================================
-// CATEGORY HELPERS
-// ======================================================
-
-function normalizeCategory(
-  category
-) {
-
-  const normalized =
-    String(
-      category || "Other"
-    )
-      .trim()
-      .toLowerCase();
-
-
-  if (
-    normalized.includes(
-      "grocer"
-    )
-  ) {
-    return "groceries";
-  }
-
-
-  if (
-    normalized.includes(
-      "dining"
-    )
-  ) {
-    return "dining";
-  }
-
-
-  if (
-    normalized.includes(
-      "subscri"
-    )
-  ) {
-    return "subscriptions";
-  }
-
-
-  if (
-    normalized.includes(
-      "gift"
-    )
-  ) {
-    return "gifts";
-  }
-
-
-  // Older entries saved as "Food" keep their look.
-  if (
-    normalized.includes(
-      "food"
-    )
-  ) {
-    return "food";
-  }
-
-
-  if (
-    normalized.includes(
-      "shop"
-    )
-  ) {
-    return "shopping";
-  }
-
-
-  if (
-    normalized.includes(
-      "entertain"
-    )
-  ) {
-    return "entertainment";
-  }
-
-
-  if (
-    normalized.includes(
-      "transport"
-    ) ||
-    normalized.includes(
-      "gas"
-    ) ||
-    normalized.includes(
-      "car"
-    )
-  ) {
-    return "transport";
-  }
-
-
-  if (
-    normalized.includes(
-      "bill"
-    ) ||
-    normalized.includes(
-      "utility"
-    )
-  ) {
-    return "bills";
-  }
-
-
-  if (
-    normalized.includes(
-      "health"
-    ) ||
-    normalized.includes(
-      "medical"
-    )
-  ) {
-    return "health";
-  }
-
-
-  return "other";
-
-}
 
 
 // ======================================================

@@ -1102,6 +1102,156 @@ CATEGORY BAR
 }
 
 /* =========================================================
+BREAKDOWN VIEW SWITCHER (reuses .simulation-toggle)
+========================================================= */
+
+.simulation-toggle.breakdown-view-toggle {
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 0 20px;
+}
+
+.simulation-toggle.breakdown-view-toggle button {
+  min-height: 36px;
+}
+
+/* =========================================================
+PIE VIEW
+========================================================= */
+
+.breakdown-pie {
+  display: grid;
+  gap: 20px;
+}
+
+.breakdown-pie-chart {
+  position: relative;
+  width: min(220px, 70%);
+  margin: 0 auto;
+}
+
+.breakdown-pie-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.breakdown-pie-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.breakdown-pie-center span {
+  color: #858d87;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.breakdown-pie-center strong {
+  color: #202622;
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.breakdown-legend {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breakdown-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #303732;
+  font-size: 13px;
+}
+
+.breakdown-legend-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.breakdown-legend-name {
+  flex: 1;
+  font-weight: 700;
+}
+
+.breakdown-legend strong {
+  font-weight: 750;
+}
+
+.breakdown-legend-percent {
+  min-width: 36px;
+  color: #858d87;
+  font-size: 11px;
+  text-align: right;
+}
+
+/* =========================================================
+VS LAST MONTH VIEW
+========================================================= */
+
+.breakdown-compare-total {
+  margin: 0 0 12px;
+  color: #4f5852;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.breakdown-compare-key {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+  color: #858d87;
+  font-size: 11px;
+}
+
+.breakdown-compare-key span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.breakdown-compare-key i {
+  width: 16px;
+  height: 7px;
+  border-radius: 999px;
+  background: #68756c;
+}
+
+.breakdown-compare-key i.is-last,
+.category-bar-track.is-last .category-bar-fill {
+  opacity: 0.35;
+}
+
+.category-bar-track.is-last {
+  height: 6px;
+  margin-top: -4px;
+}
+
+.breakdown-compare .category-breakdown-values span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* Spending more is the thing to notice. */
+.breakdown-compare .category-breakdown-values span.is-up {
+  color: #b0533f;
+}
+
+.breakdown-compare .category-breakdown-values span.is-down {
+  color: #2f7a52;
+}
+
+/* =========================================================
 EMPTY BREAKDOWN
 ========================================================= */
 
