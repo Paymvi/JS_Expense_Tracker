@@ -10,27 +10,32 @@ import {
 } from "react-router-dom";
 
 import {
-  downloadExpenseBackup,
+  createBackupJson,
+  InvalidBackupDatesError,
   readExpenseBackup,
 } from "./utils/backupHelpers";
 
 import {
+  getSpendingExpenses,
+  toDateInputValue,
+} from "./utils/expenseHelpers";
+
+import { saveTextFile } from "./utils/saveFile";
+
+import { useToday } from "./utils/useToday";
+
+import {
   addExpense as saveNewExpense,
   deleteExpense as removeExpense,
-  replaceExpenses,
   updateExpense as saveExpenseChanges,
   useExpenses,
 } from "./data/expenseRepository";
 
-import {
-  getNotes,
-  saveNotes,
-} from "./data/notesRepository";
+import { getNotes } from "./data/notesRepository";
 
-import {
-  getPools,
-  savePools,
-} from "./data/poolsRepository";
+import { getPools } from "./data/poolsRepository";
+
+import { restoreBackup } from "./data/restoreBackup";
 
 import {
   getSetting,
@@ -88,13 +93,18 @@ function App() {
   });
 
 
-  const overviewExpenses =
-    includeCovered
-      ? expenses
-      : expenses.filter(
-          (expense) =>
-            expense.covered !== true
-        );
+  // What counts toward spending totals on every page.
+  // Transactions still lists all expenses for browsing.
+  const spendingExpenses =
+    getSpendingExpenses(
+      expenses,
+      includeCovered
+    );
+
+
+  // Local calendar day; changes at midnight / on resume.
+  const today =
+    useToday();
 
 
   const coveredExpenseCount =
@@ -134,20 +144,8 @@ function App() {
 
 
   // ======================================================
-  // ADD EXPENSE
+  // ADD / EDIT MODAL
   // ======================================================
-
-  function addExpense(
-    expense
-  ) {
-
-    // The repository creates the id and createdAt,
-    // then saves it to the device.
-    saveNewExpense(
-      expense
-    );
-
-  }
 
   function openAddExpense() {
 
@@ -178,27 +176,6 @@ function App() {
     setEditingExpense(null);
   }
 
-
-  function updateExpense(
-    expenseId,
-    changes
-  ) {
-
-    saveExpenseChanges(
-      expenseId,
-      changes
-    );
-  }
-
-  function deleteExpense(
-    expenseId
-  ) {
-
-    removeExpense(
-      expenseId
-    );
-  }
-
   // ======================================================
   // EXPORT BACKUP
   // ======================================================
@@ -207,11 +184,45 @@ function App() {
 
     try {
 
-      await downloadExpenseBackup({
-        expenses,
-        notes: getNotes(),
-        pools: getPools(),
-      });
+      const json =
+        createBackupJson({
+          expenses,
+          notes: getNotes(),
+          pools: getPools(),
+        });
+
+
+      // Read our own file back with the import rules, so a
+      // problem shows up now and not on the day of a restore.
+      try {
+
+        await readExpenseBackup({
+          text: async () => json,
+        });
+
+      } catch (problem) {
+
+        const exportAnyway =
+          window.confirm(
+            "This backup would not import cleanly:\n\n" +
+            `${problem.message}\n\n` +
+            (problem instanceof InvalidBackupDatesError
+              ? "Fix them under \"Needs a date\" in Transactions. If you export now, importing will ask before keeping them.\n\n"
+              : "") +
+            "Export anyway?"
+          );
+
+        if (!exportAnyway) {
+          return;
+        }
+
+      }
+
+
+      await saveTextFile(
+        `expense-tracker-backup-${toDateInputValue()}.json`,
+        json
+      );
 
     } catch (error) {
 
@@ -239,142 +250,24 @@ function App() {
 
     try {
 
-      // Read + validate the file.
-      const backup =
-        await readExpenseBackup(
-          file
+      // Validates everything and asks every question
+      // before anything is written.
+      const summary =
+        await restoreBackup(
+          file,
+          { confirm: (message) => window.confirm(message) }
         );
 
-      const importedExpenses =
-        backup.expenses;
-
-
-      // --------------------------------------------------
-      // CONFIRM BEFORE REPLACING DATA
-      // --------------------------------------------------
-
-      const shouldImport =
-        window.confirm(
-          `This backup contains ${
-            importedExpenses.length
-          } ${
-            importedExpenses.length === 1
-              ? "transaction"
-              : "transactions"
-          }.\n\n` +
-          `Importing it will replace your current ${
-            expenses.length
-          } ${
-            expenses.length === 1
-              ? "transaction"
-              : "transactions"
-          }.\n\n` +
-          "Continue?"
-        );
-
-
-      if (!shouldImport) {
+      if (summary === null) {
         return;
-      }
-
-
-      // --------------------------------------------------
-      // REPLACE CURRENT EXPENSES
-      // --------------------------------------------------
-
-      replaceExpenses(
-        importedExpenses
-      );
-
-
-      // --------------------------------------------------
-      // NOTES + POOLS (only in newer backups)
-      //
-      // Asked separately so nothing is replaced
-      // without a clear yes.
-      // --------------------------------------------------
-
-      const restored = [];
-
-      if (
-        backup.notes &&
-        window.confirm(
-          `This backup also contains ${backup.notes.length} ${
-            backup.notes.length === 1 ? "note" : "notes"
-          }.
-
-` +
-          `Replace your current ${getNotes().length} ${
-            getNotes().length === 1 ? "note" : "notes"
-          } with them?`
-        )
-      ) {
-
-        saveNotes(
-          backup.notes
-        );
-
-        restored.push(
-          `${backup.notes.length} ${
-            backup.notes.length === 1 ? "note" : "notes"
-          }`
-        );
-
-      }
-
-
-      if (
-        backup.pools &&
-        window.confirm(
-          `This backup also contains ${backup.pools.length} ${
-            backup.pools.length === 1 ? "pool" : "pools"
-          }.
-
-` +
-          `Replace your current ${getPools().length} ${
-            getPools().length === 1 ? "pool" : "pools"
-          } with them?`
-        )
-      ) {
-
-        savePools(
-          backup.pools
-        );
-
-        restored.push(
-          `${backup.pools.length} ${
-            backup.pools.length === 1 ? "pool" : "pools"
-          }`
-        );
-
       }
 
 
       // Make sure no old transaction is still being
       // edited after changing the entire data set.
-      setEditingExpense(
-        null
-      );
+      closeExpenseModal();
 
-
-      setIsAddModalOpen(
-        false
-      );
-
-
-      window.alert(
-        `Imported ${
-          importedExpenses.length
-        } ${
-          importedExpenses.length === 1
-            ? "transaction"
-            : "transactions"
-        }${
-          restored.length > 0
-            ? ` and ${restored.join(" and ")}`
-            : ""
-        }.`
-      );
+      window.alert(summary);
 
     } catch (error) {
 
@@ -382,7 +275,6 @@ function App() {
         "Could not import backup:",
         error
       );
-
 
       window.alert(
         error.message ||
@@ -477,8 +369,9 @@ function App() {
 
               <OverviewPage
                 expenses={
-                  overviewExpenses
+                  spendingExpenses
                 }
+                today={today}
               />
 
             </div>
@@ -493,6 +386,16 @@ function App() {
               expenses={
                 expenses
               }
+
+              spendingExpenses={
+                spendingExpenses
+              }
+
+              includeCovered={
+                includeCovered
+              }
+
+              today={today}
 
               onEditExpense={
                 openEditExpense
@@ -513,7 +416,9 @@ function App() {
           path="/visualizer"
           element={
             <VisualizerPage
-              expenses={expenses}
+              expenses={spendingExpenses}
+              includeCovered={includeCovered}
+              today={today}
             />
           }
         />
@@ -566,7 +471,7 @@ function App() {
         }
 
         onAddExpense={
-          addExpense
+          saveNewExpense
         }
 
         editingExpense={
@@ -574,11 +479,11 @@ function App() {
         }
 
         onUpdateExpense={
-          updateExpense
+          saveExpenseChanges
         }
 
         onDeleteExpense={
-          deleteExpense
+          removeExpense
         }
       />
 

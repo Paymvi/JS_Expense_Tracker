@@ -104,13 +104,6 @@ export function isNativeApp() {
 }
 
 
-export function getStorageBackendName() {
-
-  return backend?.name ?? "not initialized";
-
-}
-
-
 // =========================================================
 // ROW KEYS
 //
@@ -608,7 +601,8 @@ async function migrateLegacyData(db) {
 }
 
 
-function createNativeBackend() {
+// openDb is swappable only so tests can use a fake database.
+export function createNativeBackend(openDb = openDatabase) {
 
   let db = null;
 
@@ -620,7 +614,7 @@ function createNativeBackend() {
     async load() {
 
       db =
-        await openDatabase();
+        await openDb();
 
       await migrateLegacyData(db);
 
@@ -781,7 +775,8 @@ function createNativeBackend() {
 // INITIALIZE
 // =========================================================
 
-export function initStorage() {
+// options.backend is for tests; the app never passes it.
+export function initStorage(options = {}) {
 
   if (!initPromise) {
 
@@ -789,9 +784,10 @@ export function initStorage() {
       (async () => {
 
         backend =
-          isNativeApp()
+          options.backend ??
+          (isNativeApp()
             ? createNativeBackend()
-            : createWebBackend();
+            : createWebBackend());
 
 
         const loaded =
@@ -891,7 +887,8 @@ function enqueueWrite(task) {
 }
 
 
-// Resolves once every change made so far has been written.
+// Resolves once every change made so far has been written
+// (or reported as failed). Used by tests.
 export function flushWrites() {
 
   return writeQueue;
@@ -945,7 +942,7 @@ export function subscribeToCollection(name, listener) {
 // list writes one row instead of renumbering every row.
 // ---------------------------------------------------------
 
-function assignPositions(keys, previous) {
+export function assignPositions(keys, previous) {
 
   const positions =
     new Array(keys.length);
@@ -1134,15 +1131,6 @@ export function replaceCollection(name, nextList) {
 
   const fullResync =
     needsResync[name] === true;
-
-
-  if (
-    !fullResync &&
-    upserts.length === 0 &&
-    deletes.length === 0
-  ) {
-    return;
-  }
 
 
   needsResync[name] =

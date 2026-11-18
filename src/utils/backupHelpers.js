@@ -1,130 +1,38 @@
 // =========================================================
 // EXPENSE TRACKER BACKUPS
 //
-// Handles:
-// - Exporting expenses (plus notes and pools) to JSON
-// - Reading JSON backups
-// - Validating imported expenses
+// Pure backup format: building the JSON and reading /
+// validating it. No file saving or storage here, so it can
+// be tested with plain `node --test`.
 //
 // Version 2 adds optional "notes" and "pools" arrays.
 // Version 1 files (expenses only) still import normally.
 // =========================================================
 
-import { saveTextFile } from "./saveFile";
+import { createId } from "./createId.js";
+
+import {
+  formatCurrency,
+  parseExpenseDate,
+} from "./expenseHelpers.js";
 
 
 const BACKUP_VERSION = 2;
 
 
-// ---------------------------------------------------------
-// CREATE A UNIQUE ID
-// ---------------------------------------------------------
+// Notes used to save whether they were expanded on screen.
+// That is display state, so it never goes into new data.
+export function stripNoteUiState(note) {
 
-function createId() {
-
-  return (
-    globalThis.crypto
-      ?.randomUUID?.() ??
-    `${Date.now()}-${Math.random()}`
-  );
-
-}
-
-
-// ---------------------------------------------------------
-// CHECK IF A DATE IS VALID
-//
-// Expected:
-// YYYY-MM-DD
-// ---------------------------------------------------------
-
-function isValidExpenseDate(
-  dateString
-) {
-
-  if (
-    typeof dateString !==
-    "string"
-  ) {
-    return false;
+  if (!note || !("isOpen" in note)) {
+    return note;
   }
 
+  const copy = { ...note };
 
-  const match =
-    dateString.match(
-      /^(\d{4})-(\d{2})-(\d{2})$/
-    );
+  delete copy.isOpen;
 
-
-  if (!match) {
-    return false;
-  }
-
-
-  const year =
-    Number(match[1]);
-
-  const month =
-    Number(match[2]);
-
-  const day =
-    Number(match[3]);
-
-
-  const date =
-    new Date(
-      year,
-      month - 1,
-      day
-    );
-
-
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() ===
-      month - 1 &&
-    date.getDate() === day
-  );
-
-}
-
-
-// ---------------------------------------------------------
-// LOCAL DATE FOR FILE NAME
-//
-// Example:
-// 2026-08-25
-// ---------------------------------------------------------
-
-function getDateStamp() {
-
-  const today =
-    new Date();
-
-
-  const year =
-    today.getFullYear();
-
-
-  const month =
-    String(
-      today.getMonth() + 1
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  const day =
-    String(
-      today.getDate()
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  return `${year}-${month}-${day}`;
+  return copy;
 
 }
 
@@ -133,48 +41,25 @@ function getDateStamp() {
 // EXPORT
 // =========================================================
 
-export async function downloadExpenseBackup({
+export function createBackupJson({
   expenses,
   notes,
   pools,
 }) {
 
   // Wrap the data in a backup object rather than
-  // exporting the array by itself.
-  //
-  // This makes the backup format easier to expand later.
-  const backup = {
-
-    app:
-      "expense-tracker",
-
-    version:
-      BACKUP_VERSION,
-
-    exportedAt:
-      new Date().toISOString(),
-
-    expenses,
-
-    notes,
-
-    pools,
-
-  };
-
-
-  // Make the JSON human-readable.
-  const json =
-    JSON.stringify(
-      backup,
-      null,
-      2
-    );
-
-
-  await saveTextFile(
-    `expense-tracker-backup-${getDateStamp()}.json`,
-    json
+  // exporting the array by itself, so the format can grow.
+  return JSON.stringify(
+    {
+      app: "expense-tracker",
+      version: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      expenses,
+      notes: notes?.map(stripNoteUiState),
+      pools,
+    },
+    null,
+    2
   );
 
 }
@@ -184,20 +69,70 @@ export async function downloadExpenseBackup({
 // IMPORT
 // =========================================================
 
-export async function readExpenseBackup(
-  file
-) {
+// Thrown when the only problem is expenses without a real
+// date. `invalidDates` lists them so the user can decide.
+export class InvalidBackupDatesError extends Error {
 
-  // -------------------------------------------------------
-  // READ FILE
-  // -------------------------------------------------------
+  constructor(invalidDates) {
+
+    const shown =
+      invalidDates
+        .slice(0, 5)
+        .map(describeInvalidDate)
+        .join("\n");
+
+    const more =
+      invalidDates.length > 5
+        ? `\n…and ${invalidDates.length - 5} more.`
+        : "";
+
+    super(
+      `${invalidDates.length} ${
+        invalidDates.length === 1
+          ? "transaction has"
+          : "transactions have"
+      } no valid date (YYYY-MM-DD):\n${shown}${more}`
+    );
+
+    this.invalidDates = invalidDates;
+
+  }
+
+}
+
+
+function describeInvalidDate({ itemNumber, description, amount, date }) {
+
+  const label =
+    description ? `"${description}"` : "(no description)";
+
+  const value =
+    date === undefined || date === ""
+      ? "missing"
+      : JSON.stringify(date);
+
+  return `• Transaction ${itemNumber}: ${label}, ${formatCurrency(amount)}, date ${value}`;
+
+}
+
+
+// file: anything with an async text() method (a File, or
+// { text: async () => json } in tests).
+//
+// allowInvalidDates: keep expenses whose date is not valid,
+// unchanged, instead of rejecting the whole backup. Only use
+// it after the user agreed; they show up under "Needs a date"
+// in Transactions to be fixed.
+export async function readExpenseBackup(
+  file,
+  { allowInvalidDates = false } = {}
+) {
 
   const text =
     await file.text();
 
 
   let parsed;
-
 
   try {
 
@@ -213,31 +148,15 @@ export async function readExpenseBackup(
   }
 
 
-  // -------------------------------------------------------
-  // SUPPORT TWO FORMATS
-  // -------------------------------------------------------
-
-  // Current format:
-  //
-  // {
-  //   app: "expense-tracker",
-  //   version: 1,
-  //   expenses: [...]
-  // }
-  //
-  // We also accept a plain array in case you ever
-  // created an older/manual backup.
+  // Current format: { app, version, expenses: [...] }.
+  // A plain array is accepted for older / manual backups.
   const rawExpenses =
     Array.isArray(parsed)
       ? parsed
       : parsed?.expenses;
 
 
-  if (
-    !Array.isArray(
-      rawExpenses
-    )
-  ) {
+  if (!Array.isArray(rawExpenses)) {
 
     throw new Error(
       "This does not appear to be an Expense Tracker backup."
@@ -246,36 +165,22 @@ export async function readExpenseBackup(
   }
 
 
-  // -------------------------------------------------------
-  // VALIDATE EACH EXPENSE
-  // -------------------------------------------------------
-
   const importedExpenses = [];
+
+  const invalidDates = [];
 
   const usedIds =
     new Set();
 
 
   rawExpenses.forEach(
-    (
-      expense,
-      index
-    ) => {
+    (expense, index) => {
 
       const itemNumber =
         index + 1;
 
 
-      // -----------------------------------------------
-      // Expense must be an object.
-      // -----------------------------------------------
-
-      if (
-        !expense ||
-        typeof expense !==
-          "object" ||
-        Array.isArray(expense)
-      ) {
+      if (!isPlainObject(expense)) {
 
         throw new Error(
           `Transaction ${itemNumber} is not valid.`
@@ -284,20 +189,11 @@ export async function readExpenseBackup(
       }
 
 
-      // -----------------------------------------------
-      // Amount
-      // -----------------------------------------------
-
       const amount =
-        Number(
-          expense.amount
-        );
-
+        Number(expense.amount);
 
       if (
-        !Number.isFinite(
-          amount
-        ) ||
+        !Number.isFinite(amount) ||
         amount <= 0
       ) {
 
@@ -308,40 +204,29 @@ export async function readExpenseBackup(
       }
 
 
-      // -----------------------------------------------
-      // Date
-      // -----------------------------------------------
+      // Collect every bad date first so the message can
+      // list them all at once.
+      if (!parseExpenseDate(expense.date)) {
 
-      if (
-        !isValidExpenseDate(
-          expense.date
-        )
-      ) {
-
-        throw new Error(
-          `Transaction ${itemNumber} has an invalid date.`
-        );
+        invalidDates.push({
+          itemNumber,
+          description: expense.description,
+          amount,
+          date: expense.date,
+        });
 
       }
 
 
-      // -----------------------------------------------
-      // ID
-      // -----------------------------------------------
-
-      let id =
-        typeof expense.id ===
-          "string" &&
+      const id =
+        typeof expense.id === "string" &&
         expense.id.trim()
           ? expense.id
           : createId();
 
 
-      // Don't allow duplicate IDs because editing /
-      // deleting relies on every expense being unique.
-      if (
-        usedIds.has(id)
-      ) {
+      // Editing / deleting relies on every id being unique.
+      if (usedIds.has(id)) {
 
         throw new Error(
           `Transaction ${itemNumber} has a duplicate ID.`
@@ -349,13 +234,8 @@ export async function readExpenseBackup(
 
       }
 
-
       usedIds.add(id);
 
-
-      // -----------------------------------------------
-      // NORMALIZED EXPENSE
-      // -----------------------------------------------
 
       // Start from the original record so fields like
       // "covered" survive a backup round trip.
@@ -368,39 +248,31 @@ export async function readExpenseBackup(
         amount,
 
         description:
-          typeof expense.description ===
-          "string"
+          typeof expense.description === "string"
             ? expense.description
             : "",
 
         category:
-          typeof expense.category ===
-            "string" &&
+          typeof expense.category === "string" &&
           expense.category.trim()
             ? expense.category
             : "Other",
 
+        // Kept exactly as it was, even when invalid.
         date:
           expense.date,
 
         createdAt:
-          typeof expense.createdAt ===
-            "string"
+          typeof expense.createdAt === "string"
             ? expense.createdAt
-            : new Date()
-                .toISOString(),
+            : new Date().toISOString(),
 
       };
 
 
       // Keep updatedAt only when it is valid.
-      if (
-        typeof expense.updatedAt !==
-        "string"
-      ) {
-
+      if (typeof expense.updatedAt !== "string") {
         delete normalizedExpense.updatedAt;
-
       }
 
 
@@ -412,20 +284,25 @@ export async function readExpenseBackup(
   );
 
 
+  if (
+    invalidDates.length > 0 &&
+    !allowInvalidDates
+  ) {
+    throw new InvalidBackupDatesError(invalidDates);
+  }
+
+
   return {
 
     expenses:
       importedExpenses,
 
     notes:
-      readOptionalRecords(
-        parsed?.notes
-      ),
+      readOptionalRecords(parsed?.notes, "note")
+        ?.map(stripNoteUiState) ?? null,
 
     pools:
-      readOptionalPools(
-        parsed?.pools
-      ),
+      readOptionalPools(parsed?.pools),
 
   };
 
@@ -435,8 +312,9 @@ export async function readExpenseBackup(
 // ---------------------------------------------------------
 // OPTIONAL SECTIONS (version 2+)
 //
-// Returns null when the section is missing or not usable,
-// so the caller simply skips it.
+// Missing section -> null, so the caller skips it.
+// A section that is present but broken is an error: it is
+// never skipped silently.
 // ---------------------------------------------------------
 
 function isPlainObject(value) {
@@ -450,14 +328,57 @@ function isPlainObject(value) {
 }
 
 
-function readOptionalRecords(records) {
+function readOptionalRecords(records, label) {
 
-  if (
-    !Array.isArray(records) ||
-    !records.every(isPlainObject)
-  ) {
+  if (records === undefined || records === null) {
     return null;
   }
+
+
+  if (!Array.isArray(records)) {
+
+    throw new Error(
+      `The ${label}s in this backup are not valid.`
+    );
+
+  }
+
+
+  const usedIds =
+    new Set();
+
+  records.forEach(
+    (record, index) => {
+
+      if (!isPlainObject(record)) {
+
+        throw new Error(
+          `The ${label} at position ${index + 1} is not valid.`
+        );
+
+      }
+
+
+      const id =
+        record.id;
+
+      if (id === undefined || id === null) {
+        return;
+      }
+
+      if (usedIds.has(id)) {
+
+        throw new Error(
+          `The ${label} at position ${index + 1} has a duplicate ID.`
+        );
+
+      }
+
+      usedIds.add(id);
+
+    }
+  );
+
 
   return records;
 
@@ -467,7 +388,7 @@ function readOptionalRecords(records) {
 function readOptionalPools(pools) {
 
   const records =
-    readOptionalRecords(pools);
+    readOptionalRecords(pools, "pool");
 
   if (!records) {
     return null;

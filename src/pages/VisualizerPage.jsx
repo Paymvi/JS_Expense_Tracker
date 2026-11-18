@@ -9,6 +9,13 @@ import {
   setSetting,
 } from "../data/storage";
 
+import {
+  countBills,
+  getCurrentMonthTotal,
+  getDailyAverage,
+  parseExpenseDate,
+} from "../utils/expenseHelpers";
+
 
 const BILL_OPTIONS = [
   5,
@@ -17,8 +24,12 @@ const BILL_OPTIONS = [
 ];
 
 
+// expenses: what counts toward spending (already follows the
+// "Include covered" switch), same list Overview totals use.
 export default function VisualizerPage({
   expenses = [],
+  includeCovered,
+  today,
 }) {
 
   // ======================================================
@@ -142,248 +153,41 @@ export default function VisualizerPage({
 
 
   // ======================================================
-  // MONEY VISUALIZER BILL CALCULATION
+  // BILL CALCULATIONS
   // ======================================================
 
   const calculation =
-    useMemo(() => {
+    countBills(numericAmount, selectedBill);
 
-      if (
-        numericAmount <= 0 ||
-        !selectedBill
-      ) {
-
-        return {
-          billCount: 0,
-          remainder: 0,
-        };
-
-      }
-
-
-      const cents =
-        Math.round(
-          numericAmount * 100
-        );
-
-
-      const billCents =
-        selectedBill * 100;
-
-
-      const billCount =
-        Math.floor(
-          cents / billCents
-        );
-
-
-      const remainder =
-        (
-          cents %
-          billCents
-        ) / 100;
-
-
-      return {
-        billCount,
-        remainder,
-      };
-
-    }, [
-      numericAmount,
-      selectedBill,
-    ]);
-
-
-
-  // ======================================================
-  // PURCHASE BILL CALCULATION
-  // ======================================================
 
   const purchaseCalculation =
-    useMemo(() => {
-
-      if (
-        numericPurchaseAmount <= 0 ||
-        !selectedBill
-      ) {
-
-        return {
-          billCount: 0,
-          remainder: 0,
-        };
-
-      }
-
-
-      const cents =
-        Math.round(
-          numericPurchaseAmount * 100
-        );
-
-
-      const billCents =
-        selectedBill * 100;
-
-
-      const billCount =
-        Math.floor(
-          cents / billCents
-        );
-
-
-      const remainder =
-        (
-          cents %
-          billCents
-        ) / 100;
-
-
-      return {
-        billCount,
-        remainder,
-      };
-
-    }, [
-      numericPurchaseAmount,
-      selectedBill,
-    ]);
+    countBills(numericPurchaseAmount, selectedBill);
 
 
 
   // ======================================================
   // CURRENT MONTH SPENDING
+  //
+  // Same total and month boundaries as Overview and
+  // Transactions.
   // ======================================================
+
+  const now =
+    useMemo(
+      () => parseExpenseDate(today),
+      [today]
+    );
+
 
   const monthlySpending =
-    useMemo(() => {
-
-      const now =
-        new Date();
-
-
-      const currentYear =
-        now.getFullYear();
-
-
-      const currentMonth =
-        now.getMonth();
-
-
-      return expenses.reduce(
-        (
-          total,
-          expense
-        ) => {
-
-          const rawDate =
-            expense.date ||
-            expense.transactionDate ||
-            expense.createdAt;
-
-
-          if (!rawDate) {
-
-            return total;
-
-          }
-
-
-          let expenseDate;
-
-
-          if (
-            typeof rawDate === "string" &&
-            /^\d{4}-\d{2}-\d{2}/.test(
-              rawDate
-            )
-          ) {
-
-            const [
-              year,
-              month,
-              day,
-            ] =
-              rawDate
-                .slice(0, 10)
-                .split("-")
-                .map(Number);
-
-
-            expenseDate =
-              new Date(
-                year,
-                month - 1,
-                day
-              );
-
-          } else {
-
-            expenseDate =
-              new Date(
-                rawDate
-              );
-
-          }
-
-
-          if (
-            Number.isNaN(
-              expenseDate.getTime()
-            )
-          ) {
-
-            return total;
-
-          }
-
-
-          const isCurrentMonth =
-            expenseDate.getFullYear() ===
-              currentYear &&
-            expenseDate.getMonth() ===
-              currentMonth;
-
-
-          if (!isCurrentMonth) {
-
-            return total;
-
-          }
-
-
-          const expenseAmount =
-            Number.parseFloat(
-              expense.amount
-            ) || 0;
-
-
-          return (
-            total +
-            expenseAmount
-          );
-
-        },
-        0
-      );
-
-    }, [expenses]);
-
-
-
-  // ======================================================
-  // CURRENT MONTH AVERAGES
-  // ======================================================
-
-  const currentDayOfMonth =
-    new Date().getDate();
+    useMemo(
+      () => getCurrentMonthTotal(expenses, now),
+      [expenses, now]
+    );
 
 
   const currentDailyAverage =
-    currentDayOfMonth > 0
-      ? monthlySpending /
-        currentDayOfMonth
-      : 0;
+    getDailyAverage(monthlySpending, now);
 
 
 
@@ -397,10 +201,7 @@ export default function VisualizerPage({
 
 
   const simulatedDailyAverage =
-    currentDayOfMonth > 0
-      ? simulatedMonthlySpending /
-        currentDayOfMonth
-      : 0;
+    getDailyAverage(simulatedMonthlySpending, now);
 
 
   const scenarioMonthlySpending =
@@ -1403,6 +1204,7 @@ export default function VisualizerPage({
 
                 <span className="simulation-hero-subtitle">
                   total spending this month
+                  {!includeCovered && ", covered excluded"}
                 </span>
 
               </div>

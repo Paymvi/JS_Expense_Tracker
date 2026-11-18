@@ -5,7 +5,7 @@
 import {
   getCollection,
   replaceCollection,
-} from "./storage";
+} from "./storage.js";
 
 
 export function getPools() {

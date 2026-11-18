@@ -11,6 +11,7 @@
 // or editing it returns exactly that money.
 // =========================================================
 
+import { createId } from "./createId.js";
 import { formatCurrency } from "./expenseHelpers.js";
 
 
@@ -44,12 +45,6 @@ export const byOldestFirst = (a, b) => {
 
   return Number(a.createdAt || 0) - Number(b.createdAt || 0);
 };
-
-
-const createId = () =>
-  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 
 const findPool = (pools, id) =>

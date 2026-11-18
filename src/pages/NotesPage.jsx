@@ -12,42 +12,19 @@ import {
 
 import { saveTextFile } from "../utils/saveFile";
 
+import { stripNoteUiState } from "../utils/backupHelpers";
+
+import { createId } from "../utils/createId";
+
+import { toDateInputValue } from "../utils/expenseHelpers";
+
 
 // =========================================================
 // DATE HELPERS
 // =========================================================
 
-function getTodayDate() {
-
-  const today =
-    new Date();
-
-
-  const year =
-    today.getFullYear();
-
-
-  const month =
-    String(
-      today.getMonth() + 1
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  const day =
-    String(
-      today.getDate()
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  return `${year}-${month}-${day}`;
-
-}
+// Today's local date, YYYY-MM-DD.
+const getTodayDate = () => toDateInputValue();
 
 
 // ---------------------------------------------------------
@@ -144,29 +121,9 @@ function normalizeNoteDate(
   }
 
 
-  const year =
-    parsed.getFullYear();
-
-
-  const month =
-    String(
-      parsed.getMonth() + 1
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  const day =
-    String(
-      parsed.getDate()
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  return `${year}-${month}-${day}`;
+  return toDateInputValue(
+    parsed
+  );
 
 }
 
@@ -316,8 +273,8 @@ export default function NotesPage() {
               note.isPinned
             ),
 
-          // Start notes collapsed when the app opens.
-          isOpen: false,
+          // A legacy saved "isOpen" is left as-is (and
+          // ignored), so loading never rewrites every note.
 
         })
       );
@@ -335,6 +292,21 @@ export default function NotesPage() {
     }
 
   });
+
+
+  // ======================================================
+  // EXPANDED NOTES
+  //
+  // Screen state only: never saved, so opening or closing
+  // a note writes nothing. Notes start collapsed.
+  // ======================================================
+
+  const [
+    openNoteIds,
+    setOpenNoteIds,
+  ] = useState(
+    () => new Set()
+  );
 
 
   // ======================================================
@@ -492,9 +464,7 @@ export default function NotesPage() {
     const newNote = {
 
       id:
-        globalThis.crypto
-          ?.randomUUID?.() ??
-        `${Date.now()}-${Math.random()}`,
+        createId(),
 
       title: "",
 
@@ -502,8 +472,6 @@ export default function NotesPage() {
         getTodayDate(),
 
       text: "",
-
-      isOpen: true,
 
       fontSize: 16,
 
@@ -520,15 +488,15 @@ export default function NotesPage() {
 
         newNote,
 
-        // Close any currently open notes.
-        ...currentNotes.map(
-          (note) => ({
-            ...note,
-            isOpen: false,
-          })
-        ),
+        ...currentNotes,
 
       ]
+    );
+
+
+    // Open only the new note.
+    setOpenNoteIds(
+      new Set([newNote.id])
     );
 
 
@@ -547,21 +515,21 @@ export default function NotesPage() {
     noteId
   ) {
 
-    setNotes(
-      (currentNotes) =>
-        currentNotes.map(
-          (note) =>
+    setOpenNoteIds(
+      (previous) => {
 
-            note.id === noteId
-              ? {
-                  ...note,
+        const next =
+          new Set(previous);
 
-                  isOpen:
-                    !note.isOpen,
-                }
-              : note
+        if (next.has(noteId)) {
+          next.delete(noteId);
+        } else {
+          next.add(noteId);
+        }
 
-        )
+        return next;
+
+      }
     );
 
   }
@@ -575,19 +543,8 @@ export default function NotesPage() {
     noteId
   ) {
 
-    setNotes(
-      (currentNotes) =>
-        currentNotes.map(
-          (note) => ({
-
-            ...note,
-
-            isOpen:
-              note.id ===
-              noteId,
-
-          })
-        )
+    setOpenNoteIds(
+      new Set([noteId])
     );
 
 
@@ -621,7 +578,7 @@ export default function NotesPage() {
 
             return {
 
-              ...note,
+              ...stripNoteUiState(note),
 
               [field]:
                 value,
@@ -654,7 +611,7 @@ export default function NotesPage() {
 
             note.id === noteId
               ? {
-                  ...note,
+                  ...stripNoteUiState(note),
 
                   isPinned:
                     !note.isPinned,
@@ -748,7 +705,7 @@ export default function NotesPage() {
 
             return {
 
-              ...note,
+              ...stripNoteUiState(note),
 
               fontSize:
                 newSize,
@@ -779,7 +736,8 @@ export default function NotesPage() {
         new Date()
           .toISOString(),
 
-      notes,
+      notes:
+        notes.map(stripNoteUiState),
 
     };
 
@@ -920,7 +878,7 @@ export default function NotesPage() {
 
                 id:
                   note.id ??
-                  `${Date.now()}-${Math.random()}`,
+                  createId(),
 
                 title:
                   typeof note.title ===
@@ -949,9 +907,6 @@ export default function NotesPage() {
                     note.isPinned
                   ),
 
-                // Imported notes begin collapsed.
-                isOpen: false,
-
                 createdAt:
                   note.createdAt ||
                   new Date()
@@ -966,6 +921,12 @@ export default function NotesPage() {
 
           setNotes(
             importedNotes
+          );
+
+
+          // Imported notes begin collapsed.
+          setOpenNoteIds(
+            new Set()
           );
 
 
@@ -1450,7 +1411,7 @@ export default function NotesPage() {
                     note.id
                   }
                   className={
-                    note.isOpen
+                    openNoteIds.has(note.id)
                       ? "note-card note-card-open"
                       : "note-card"
                   }
@@ -1609,7 +1570,7 @@ export default function NotesPage() {
                       EXPANDED NOTE
                   ======================================= */}
 
-                  {note.isOpen && (
+                  {openNoteIds.has(note.id) && (
 
                     <div className="note-card-body">
 

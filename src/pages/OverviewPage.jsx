@@ -1,8 +1,6 @@
 import {
-  useEffect,
   useMemo,
   useState,
-  
 } from "react";
 
 import MonthlySnapshot from "../components/MonthlySnapshot";
@@ -15,12 +13,27 @@ import {
   formatCurrency,
   getCurrentMonthCount,
   getCurrentMonthTotal,
+  parseExpenseDate,
 } from "../utils/expenseHelpers";
+
+
+// buildWeeklySpending always returns exactly this many weeks,
+// oldest first, so the newest week is WEEK_COUNT - 1.
+const WEEK_COUNT = 12;
 
 
 export default function OverviewPage({
   expenses,
+  today,
 }) {
+
+  // Midnight of the local day; changes at midnight / resume.
+  const now =
+    useMemo(
+      () => parseExpenseDate(today),
+      [today]
+    );
+
 
   // ======================================================
   // UI STATE
@@ -37,10 +50,11 @@ export default function OverviewPage({
   ] = useState(null);
 
 
+  // Newest week selected by default.
   const [
     selectedWeekIndex,
     setSelectedWeekIndex,
-  ] = useState(0);
+  ] = useState(WEEK_COUNT - 1);
 
 
   // ======================================================
@@ -51,20 +65,22 @@ export default function OverviewPage({
     useMemo(() => {
 
       return getCurrentMonthTotal(
-        expenses
+        expenses,
+        now
       );
 
-    }, [expenses]);
+    }, [expenses, now]);
 
 
   const currentMonthCount =
     useMemo(() => {
 
       return getCurrentMonthCount(
-        expenses
+        expenses,
+        now
       );
 
-    }, [expenses]);
+    }, [expenses, now]);
 
 
   const monthlySnapshot =
@@ -72,10 +88,11 @@ export default function OverviewPage({
 
       return buildMonthlySnapshot(
         expenses,
-        3
+        3,
+        now
       );
 
-    }, [expenses]);
+    }, [expenses, now]);
 
 
   const weeks =
@@ -83,27 +100,11 @@ export default function OverviewPage({
 
       return buildWeeklySpending(
         expenses,
-        12
+        WEEK_COUNT,
+        now
       );
 
-    }, [expenses]);
-
-
-  // ======================================================
-  // SELECT NEWEST WEEK BY DEFAULT
-  // ======================================================
-
-  useEffect(() => {
-
-    if (weeks.length > 0) {
-
-      setSelectedWeekIndex(
-        weeks.length - 1
-      );
-
-    }
-
-  }, [weeks.length]);
+    }, [expenses, now]);
 
 
   // ======================================================
@@ -111,7 +112,7 @@ export default function OverviewPage({
   // ======================================================
 
   const currentMonthLabel =
-    new Date().toLocaleString(
+    now.toLocaleString(
       "en-US",
       {
         month: "long",

@@ -1,16 +1,36 @@
-import React, {
+import {
   useEffect,
   useState,
 } from "react";
 
 import {
   EXPENSE_CATEGORIES,
+  parseExpenseDate,
   toDateInputValue,
 } from "../utils/expenseHelpers";
 
 
-export default function AddExpenseModal({
-  isOpen,
+// The form is mounted fresh every time the modal opens, and
+// again when a different expense is edited (key), so its
+// fields always start from the right values without an
+// effect overwriting what the user is typing.
+export default function AddExpenseModal(props) {
+
+  if (!props.isOpen) {
+    return null;
+  }
+
+  return (
+    <ExpenseForm
+      key={props.editingExpense?.id ?? "new"}
+      {...props}
+    />
+  );
+
+}
+
+
+function ExpenseForm({
   onClose,
 
   // Adding
@@ -23,25 +43,57 @@ export default function AddExpenseModal({
 }) {
 
   const [amount, setAmount] =
-    useState("");
+    useState(() =>
+      editingExpense
+        ? String(editingExpense.amount ?? "")
+        : ""
+    );
 
   const [
     description,
     setDescription,
-  ] = useState("");
+  ] = useState(
+    () => editingExpense?.description || ""
+  );
 
   const [category, setCategory] =
-    useState("Other");
-
-  const [date, setDate] =
     useState(
-      toDateInputValue()
+      () => editingExpense?.category || "Other"
     );
+
+  // An existing expense with no real date starts empty
+  // (never silently "today"), so the user picks the day.
+  const [date, setDate] =
+    useState(() => {
+
+      if (!editingExpense) {
+        return toDateInputValue();
+      }
+
+      return parseExpenseDate(editingExpense.date)
+        ? editingExpense.date
+        : "";
+
+    });
 
   const [
     covered,
     setCovered,
-  ] = useState(false);
+  ] = useState(
+    () => editingExpense?.covered === true
+  );
+
+  const [
+    dateError,
+    setDateError,
+  ] = useState(() =>
+    editingExpense &&
+    !parseExpenseDate(editingExpense.date)
+      ? `This expense has no valid date (saved as ${
+          JSON.stringify(editingExpense.date ?? "")
+        }). Pick the day it happened.`
+      : ""
+  );
 
 
   // ======================================================
@@ -53,81 +105,10 @@ export default function AddExpenseModal({
 
 
   // ======================================================
-  // LOAD FORM VALUES
-  // ======================================================
-
-  useEffect(() => {
-
-    if (!isOpen) {
-      return;
-    }
-
-
-    // -----------------------------------------------
-    // EDIT EXISTING EXPENSE
-    // -----------------------------------------------
-
-    if (editingExpense) {
-
-      setAmount(
-        String(
-          editingExpense.amount ?? ""
-        )
-      );
-
-      setDescription(
-        editingExpense.description || ""
-      );
-
-      setCategory(
-        editingExpense.category || "Other"
-      );
-
-      setDate(
-        editingExpense.date ||
-          toDateInputValue()
-      );
-
-      setCovered(
-        editingExpense.covered === true
-      );
-
-      return;
-    }
-
-
-    // -----------------------------------------------
-    // ADD NEW EXPENSE
-    // -----------------------------------------------
-
-    setAmount("");
-
-    setDescription("");
-
-    setCategory("Other");
-
-    setDate(
-      toDateInputValue()
-    );
-
-    setCovered(false);
-
-  }, [
-    isOpen,
-    editingExpense,
-  ]);
-
-
-  // ======================================================
   // ESCAPE KEY
   // ======================================================
 
   useEffect(() => {
-
-    if (!isOpen) {
-      return;
-    }
-
 
     function handleKeyDown(event) {
 
@@ -155,13 +136,7 @@ export default function AddExpenseModal({
 
     };
 
-  }, [isOpen, onClose]);
-
-
-  // Don't render modal while closed.
-  if (!isOpen) {
-    return null;
-  }
+  }, [onClose]);
 
 
   // ======================================================
@@ -182,6 +157,20 @@ export default function AddExpenseModal({
       numberAmount <= 0
     ) {
       return;
+    }
+
+
+    // The input is `required`, but the Android picker's
+    // "Clear" button or a typed value can still leave it
+    // empty or invalid. Never save an undated expense.
+    if (!parseExpenseDate(date)) {
+
+      setDateError(
+        "Pick the date of this expense."
+      );
+
+      return;
+
     }
 
 
@@ -499,6 +488,13 @@ export default function AddExpenseModal({
         <input
           className="expense-input"
           type="date"
+          required
+          aria-invalid={Boolean(dateError)}
+          aria-describedby={
+            dateError
+              ? "expense-date-error"
+              : undefined
+          }
           value={date}
           onChange={(event) => {
 
@@ -506,8 +502,23 @@ export default function AddExpenseModal({
               event.target.value
             );
 
+            setDateError("");
+
           }}
         />
+
+
+        {dateError && (
+
+          <p
+            id="expense-date-error"
+            className="expense-form-error"
+            role="alert"
+          >
+            {dateError}
+          </p>
+
+        )}
 
 
         {/* =================================================

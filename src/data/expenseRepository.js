@@ -11,22 +11,15 @@ import {
   getCollection,
   replaceCollection,
   subscribeToCollection,
-} from "./storage";
+} from "./storage.js";
+
+import { createId } from "../utils/createId.js";
+
+import { parseExpenseDate } from "../utils/expenseHelpers.js";
 
 
 const COLLECTION =
   "expenses";
-
-
-function createId() {
-
-  return (
-    globalThis.crypto
-      ?.randomUUID?.() ??
-    `${Date.now()}-${Math.random()}`
-  );
-
-}
 
 
 // ---------------------------------------------------------
@@ -65,7 +58,24 @@ export function useExpenses() {
 // WRITE
 // ---------------------------------------------------------
 
+// Last line of defence: the form already checks this, but an
+// undated expense drops out of every total, so never save one.
+function assertValidDate(date) {
+
+  if (!parseExpenseDate(date)) {
+
+    throw new Error(
+      `Expense date must be a real day (YYYY-MM-DD), got ${JSON.stringify(date)}.`
+    );
+
+  }
+
+}
+
+
 export function addExpense(expense) {
+
+  assertValidDate(expense.date);
 
   const newExpense = {
 
@@ -95,6 +105,8 @@ export function addExpense(expense) {
 
 
 export function updateExpense(expenseId, changes) {
+
+  assertValidDate(changes.date);
 
   replaceCollection(
     COLLECTION,
@@ -147,16 +159,6 @@ export function replaceExpenses(expenses) {
   replaceCollection(
     COLLECTION,
     expenses
-  );
-
-}
-
-
-export function clearExpenses() {
-
-  replaceCollection(
-    COLLECTION,
-    []
   );
 
 }

@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "android:sync": "vite build && cap sync android",
     "android:open": "cap open android",
-    "test": "node --test src/utils/brands.test.js src/utils/poolMath.test.js"
+    "test": "node --test src/utils/brands.test.js src/utils/poolMath.test.js src/utils/expenseHelpers.test.js src/utils/backupHelpers.test.js src/data/storage.test.js src/data/restoreBackup.test.js"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.1",

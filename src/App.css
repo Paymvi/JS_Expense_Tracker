@@ -4550,7 +4550,8 @@ MOBILE
   line-height: 1.45;
 }
 
-.pools-form-error {
+.pools-form-error,
+.expense-form-error {
   margin: 0 0 10px;
   border-radius: 10px;
   padding: 10px 12px;

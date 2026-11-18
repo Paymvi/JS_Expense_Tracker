@@ -6,9 +6,17 @@ import {
 
 import {
   formatCurrency,
+  getCurrentMonthCount,
+  getCurrentMonthTotal,
+  getDailyAverage,
   normalizeCategory,
   parseExpenseDate,
 } from "../utils/expenseHelpers";
+
+
+// Group key for expenses without a real date. They are shown
+// first so they get noticed and fixed (tap one to edit it).
+const NEEDS_DATE = "";
 
 import {
   getBrandLogo,
@@ -700,8 +708,14 @@ function ExpenseIcon({
 // TRANSACTIONS PAGE
 // ======================================================
 
+// expenses: everything, for browsing and search.
+// spendingExpenses: what counts toward totals (follows the
+// "Include covered" switch on Overview).
 export default function TransactionsPage({
   expenses,
+  spendingExpenses,
+  includeCovered,
+  today,
   onEditExpense,
   onExportExpenses,
   onImportExpenses,
@@ -882,89 +896,69 @@ export default function TransactionsPage({
   const transactionGroups =
     useMemo(() => {
 
-      const sortedExpenses = [
-        ...visibleExpenses,
-      ].sort((a, b) => {
-
-        const dateComparison =
-          String(
-            b.date
-          ).localeCompare(
-            String(
-              a.date
-            )
-          );
+      const keyed =
+        visibleExpenses.map(
+          (expense) => ({
+            expense,
+            date:
+              parseExpenseDate(expense.date)
+                ? expense.date
+                : NEEDS_DATE,
+          })
+        );
 
 
-        if (
-          dateComparison !== 0
-        ) {
+      // Newest day first, newest entry first within a day.
+      // Different days never compare equal, so each day's
+      // expenses end up next to each other.
+      keyed.sort((a, b) => {
 
-          return dateComparison;
+        if (a.date !== b.date) {
+
+          if (a.date === NEEDS_DATE) return -1;
+
+          if (b.date === NEEDS_DATE) return 1;
+
+          return b.date.localeCompare(a.date);
 
         }
 
-
         return (
-          new Date(
-            b.createdAt || 0
-          ).getTime() -
-          new Date(
-            a.createdAt || 0
-          ).getTime()
+          new Date(b.expense.createdAt || 0).getTime() -
+          new Date(a.expense.createdAt || 0).getTime()
         );
 
       });
 
 
+      // One pass: a new group starts whenever the day changes.
       const groups = [];
 
-
-      sortedExpenses.forEach(
-        (expense) => {
+      keyed.forEach(
+        ({ expense, date }) => {
 
           let group =
-            groups.find(
-              (existingGroup) =>
-                existingGroup.date ===
-                expense.date
-            );
+            groups.at(-1);
 
-
-          if (!group) {
+          if (group?.date !== date) {
 
             group = {
-              date:
-                expense.date,
-
-              total:
-                0,
-
-              expenses:
-                [],
+              date,
+              total: 0,
+              expenses: [],
             };
 
-
-            groups.push(
-              group
-            );
+            groups.push(group);
 
           }
 
-
           group.total +=
-            Number(
-              expense.amount || 0
-            );
+            Number(expense.amount || 0);
 
-
-          group.expenses.push(
-            expense
-          );
+          group.expenses.push(expense);
 
         }
       );
-
 
       return groups;
 
@@ -975,96 +969,44 @@ export default function TransactionsPage({
   // CURRENT MONTH SUMMARY
   // ======================================================
 
+  const now =
+    useMemo(
+      () => parseExpenseDate(today),
+      [today]
+    );
+
+
   const monthSummary =
     useMemo(() => {
 
-      const now =
-        new Date();
-
-
-      const currentMonth =
-        now.getMonth();
-
-
-      const currentYear =
-        now.getFullYear();
-
-
-      const monthExpenses =
-        expenses.filter(
-          (expense) => {
-
-            const date =
-              parseExpenseDate(
-                expense.date
-              );
-
-
-            if (!date) {
-              return false;
-            }
-
-
-            return (
-              date.getMonth() ===
-                currentMonth &&
-              date.getFullYear() ===
-                currentYear
-            );
-
-          }
-        );
-
-
       const total =
-        monthExpenses.reduce(
-          (
-            sum,
-            expense
-          ) =>
-            sum +
-            Number(
-              expense.amount || 0
-            ),
-          0
-        );
+        getCurrentMonthTotal(spendingExpenses, now);
 
-
-      // True calendar-day average for the
-      // current month so far.
-      const daysElapsed =
-        Math.max(
-          1,
-          now.getDate()
-        );
-
-
-      const dailyAverage =
-        total /
-        daysElapsed;
-
-
-      const monthName =
-        now
-          .toLocaleDateString(
-            "en-US",
-            {
-              month:
-                "long",
-            }
-          )
-          .toUpperCase();
-
+      const count =
+        getCurrentMonthCount(spendingExpenses, now);
 
       return {
-        monthName,
+
+        monthName:
+          now
+            .toLocaleDateString("en-US", { month: "long" })
+            .toUpperCase(),
+
         total,
-        count:
-          monthExpenses.length,
-        dailyAverage,
+
+        count,
+
+        dailyAverage:
+          getDailyAverage(total, now),
+
+        // Covered expenses this month that the totals skip.
+        excludesCovered:
+          !includeCovered &&
+          getCurrentMonthCount(expenses, now) !== count,
+
       };
 
-    }, [expenses]);
+    }, [expenses, spendingExpenses, includeCovered, now]);
 
 
   // ======================================================
@@ -1082,13 +1024,12 @@ export default function TransactionsPage({
 
 
     if (!date) {
-      return dateString;
+      return "Needs a date · tap to fix";
     }
 
 
     const currentYear =
-      new Date()
-        .getFullYear();
+      now.getFullYear();
 
 
     const options = {
@@ -1297,6 +1238,7 @@ export default function TransactionsPage({
             {monthSummary.monthName}
             {" "}
             Spending
+            {monthSummary.excludesCovered && " · excl. covered"}
 
           </div>
 
@@ -1505,7 +1447,7 @@ export default function TransactionsPage({
 
               <section
                 className="tx-day"
-                key={group.date}
+                key={group.date || "needs-date"}
               >
 
                 {/* ==========================================

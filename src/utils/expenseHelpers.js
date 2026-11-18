@@ -23,6 +23,23 @@ export const EXPENSE_CATEGORIES = [
 
 // Groups any category label (including old ones like "Food")
 // into the type that picks its icon and color.
+//
+// Each pattern must start at a word, so "Skincare" is not
+// "car" and "Vegas trip" is not "gas". First match wins.
+const CATEGORY_PATTERNS = [
+  ["groceries", /\bgrocer/],
+  ["dining", /\bdining/],
+  ["subscriptions", /\bsubscri/],
+  ["gifts", /\bgift/],
+  // Older entries saved as "Food" keep their look.
+  ["food", /\bfood/],
+  ["shopping", /\bshop/],
+  ["entertainment", /\bentertain/],
+  ["transport", /\btransport|\bgas\b|\bcars?\b/],
+  ["bills", /\bbills?\b|\butilit(y|ies)\b/],
+  ["health", /\bhealth|\bmedical/],
+];
+
 export function normalizeCategory(
   category
 ) {
@@ -34,111 +51,11 @@ export function normalizeCategory(
       .trim()
       .toLowerCase();
 
-
-  if (
-    normalized.includes(
-      "grocer"
-    )
-  ) {
-    return "groceries";
-  }
-
-
-  if (
-    normalized.includes(
-      "dining"
-    )
-  ) {
-    return "dining";
-  }
-
-
-  if (
-    normalized.includes(
-      "subscri"
-    )
-  ) {
-    return "subscriptions";
-  }
-
-
-  if (
-    normalized.includes(
-      "gift"
-    )
-  ) {
-    return "gifts";
-  }
-
-
-  // Older entries saved as "Food" keep their look.
-  if (
-    normalized.includes(
-      "food"
-    )
-  ) {
-    return "food";
-  }
-
-
-  if (
-    normalized.includes(
-      "shop"
-    )
-  ) {
-    return "shopping";
-  }
-
-
-  if (
-    normalized.includes(
-      "entertain"
-    )
-  ) {
-    return "entertainment";
-  }
-
-
-  if (
-    normalized.includes(
-      "transport"
-    ) ||
-    normalized.includes(
-      "gas"
-    ) ||
-    normalized.includes(
-      "car"
-    )
-  ) {
-    return "transport";
-  }
-
-
-  if (
-    normalized.includes(
-      "bill"
-    ) ||
-    normalized.includes(
-      "utility"
-    )
-  ) {
-    return "bills";
-  }
-
-
-  if (
-    normalized.includes(
-      "health"
-    ) ||
-    normalized.includes(
-      "medical"
-    )
-  ) {
-    return "health";
-  }
-
-
-  return "other";
+  return (
+    CATEGORY_PATTERNS.find(
+      ([, pattern]) => pattern.test(normalized)
+    )?.[0] ?? "other"
+  );
 
 }
 
@@ -185,16 +102,28 @@ export function formatCurrency(amount) {
 // weirdness because JavaScript may interpret it as UTC.
 //
 // This keeps the date in the user's local timezone.
+//
+// Returns null for anything that is not a real calendar day
+// in YYYY-MM-DD form (e.g. "", "2026-1-5" or "2026-02-31"),
+// the same rule backup import uses.
 export function parseExpenseDate(dateString) {
-  if (!dateString) return null;
+  const match =
+    typeof dateString === "string" &&
+    dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
-  const [year, month, day] = dateString.split("-").map(Number);
-
-  if (!year || !month || !day) {
+  if (!match) {
     return null;
   }
 
-  return new Date(year, month - 1, day);
+  const [year, month, day] = match.slice(1).map(Number);
+
+  const date = new Date(year, month - 1, day);
+
+  return date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+    ? date
+    : null;
 }
 
 
@@ -219,24 +148,39 @@ export function toDateInputValue(date = new Date()) {
 // CURRENT MONTH TOTAL
 // ---------------------------------------------------------
 
-export function getCurrentMonthTotal(expenses) {
-  const now = new Date();
+//
+// Every "this month" figure (Overview, Transactions,
+// Visualizer) goes through these, so they always agree.
+// `now` is passed in so screens refresh after midnight.
+// ---------------------------------------------------------
 
-  return expenses.reduce((total, expense) => {
-    const date = parseExpenseDate(expense.date);
+// The expenses that count toward spending totals. "Covered"
+// ones (someone else paid) only count when the user's
+// "Include covered" switch is on.
+export function getSpendingExpenses(expenses, includeCovered) {
+  return includeCovered
+    ? expenses
+    : expenses.filter((expense) => expense.covered !== true);
+}
 
-    if (!date) return total;
+function isInMonthOf(expense, now) {
+  const date = parseExpenseDate(expense.date);
 
-    const isCurrentMonth =
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth();
+  return (
+    date !== null &&
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
+  );
+}
 
-    if (!isCurrentMonth) {
-      return total;
-    }
-
-    return total + Number(expense.amount || 0);
-  }, 0);
+export function getCurrentMonthTotal(expenses, now = new Date()) {
+  return expenses.reduce(
+    (total, expense) =>
+      isInMonthOf(expense, now)
+        ? total + Number(expense.amount || 0)
+        : total,
+    0
+  );
 }
 
 
@@ -244,19 +188,37 @@ export function getCurrentMonthTotal(expenses) {
 // CURRENT MONTH TRANSACTION COUNT
 // ---------------------------------------------------------
 
-export function getCurrentMonthCount(expenses) {
-  const now = new Date();
+export function getCurrentMonthCount(expenses, now = new Date()) {
+  return expenses.filter((expense) => isInMonthOf(expense, now)).length;
+}
 
-  return expenses.filter((expense) => {
-    const date = parseExpenseDate(expense.date);
 
-    if (!date) return false;
+// Average per calendar day of the month so far (today included).
+export function getDailyAverage(monthTotal, now = new Date()) {
+  return monthTotal / now.getDate();
+}
 
-    return (
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth()
-    );
-  }).length;
+
+// ---------------------------------------------------------
+// CASH BILLS
+//
+// How many bills of one size make up an amount, and what is
+// left over. Works in whole cents so 0.1 + 0.2 style float
+// errors never show up as a wrong remainder.
+// ---------------------------------------------------------
+
+export function countBills(amount, bill) {
+  const cents = Math.round(Number(amount) * 100);
+  const billCents = Math.round(Number(bill) * 100);
+
+  if (!(cents > 0) || !(billCents > 0)) {
+    return { billCount: 0, remainder: 0 };
+  }
+
+  return {
+    billCount: Math.floor(cents / billCents),
+    remainder: (cents % billCents) / 100,
+  };
 }
 
 
@@ -264,9 +226,11 @@ export function getCurrentMonthCount(expenses) {
 // MONTHLY SNAPSHOTS
 // ---------------------------------------------------------
 
-export function buildMonthlySnapshot(expenses, numberOfMonths = 3) {
-  const now = new Date();
-
+export function buildMonthlySnapshot(
+  expenses,
+  numberOfMonths = 3,
+  now = new Date()
+) {
   const snapshots = [];
 
   for (let offset = 0; offset < numberOfMonths; offset++) {
@@ -414,8 +378,12 @@ export function getStartOfWeek(date) {
 // WEEKLY SPENDING
 // ---------------------------------------------------------
 
-export function buildWeeklySpending(expenses, numberOfWeeks = 12) {
-  const currentWeekStart = getStartOfWeek(new Date());
+export function buildWeeklySpending(
+  expenses,
+  numberOfWeeks = 12,
+  now = new Date()
+) {
+  const currentWeekStart = getStartOfWeek(now);
 
   const weeks = [];
 

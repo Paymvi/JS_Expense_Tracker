@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { getPools, savePools } from "../data/poolsRepository";
-import { formatCurrency as formatMoney } from "../utils/expenseHelpers";
+import { createId } from "../utils/createId";
+import {
+  formatCurrency as formatMoney,
+  toDateInputValue,
+} from "../utils/expenseHelpers";
 import {
   addContribution,
   addSpending,
@@ -24,27 +28,6 @@ const CONTRIBUTION_TYPES = [
   { value: "extra", label: "Extra money" },
   { value: "other", label: "Other" },
 ];
-
-const createId = () => {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
-
-const getTodayInputValue = () => {
-  const now = new Date();
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-};
 
 const formatDate = (value) => {
   if (!value) {
@@ -298,7 +281,7 @@ function Pools() {
       title: "",
       amount: "",
       type: "skipped",
-      date: getTodayInputValue(),
+      date: toDateInputValue(),
       note: "",
       error: "",
     });
@@ -313,7 +296,7 @@ function Pools() {
         kind === "contribution" ? entry.originalAmount : entry.amount
       ),
       type: entry.type || "other",
-      date: entry.date || getTodayInputValue(),
+      date: entry.date || toDateInputValue(),
       note: entry.note || "",
       error: "",
     });
