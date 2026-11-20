@@ -102,6 +102,39 @@ function App() {
     );
 
 
+  // ======================================================
+  // NIGHT MODE
+  // ======================================================
+
+  const [
+    nightMode,
+    setNightMode,
+  ] = useState(() => {
+
+    return (
+      getSetting(
+        "nightMode"
+      ) === "true"
+    );
+
+  });
+
+
+  useEffect(() => {
+
+    document.documentElement.classList.toggle(
+      "night-mode",
+      nightMode
+    );
+
+    setSetting(
+      "nightMode",
+      nightMode
+    );
+
+  }, [nightMode]);
+
+
   // Local calendar day; changes at midnight / on resume.
   const today =
     useToday();
@@ -355,6 +388,49 @@ function App() {
                     aria-label="Include covered expenses in overview totals"
                     aria-pressed={
                       includeCovered
+                    }
+                  >
+
+                    <span className="covered-switch-knob" />
+
+                  </button>
+
+                </div>
+
+
+                <div className="covered-filter-control night-mode-control">
+
+                  <div className="covered-filter-copy">
+
+                    <div className="covered-filter-title">
+                      Night mode
+                    </div>
+
+                    <div className="covered-filter-description">
+                      {nightMode ? "Dark colors" : "Light colors"}
+                    </div>
+
+                  </div>
+
+
+                  <button
+                    type="button"
+                    className={`covered-switch ${
+                      nightMode
+                        ? "active"
+                        : ""
+                    }`}
+                    onClick={() => {
+
+                      setNightMode(
+                        (previous) =>
+                          !previous
+                      );
+
+                    }}
+                    aria-label="Night mode"
+                    aria-pressed={
+                      nightMode
                     }
                   >
 

@@ -87,3 +87,22 @@ html {
   font-size: 12px;
   color: #6b7280;
 }
+
+/* =========================================================
+   NIGHT MODE
+========================================================= */
+
+/* shortcut: App.css has ~400 hardcoded colors and no variables, so night
+   mode inverts the whole page; switch to color tokens if it needs tuning. */
+html.night-mode {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+/* Flip photos and brand logos back to their real colors. */
+html.night-mode img {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.night-mode-control {
+  margin-top: 10px;
+}

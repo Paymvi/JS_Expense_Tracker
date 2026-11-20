@@ -53,6 +53,9 @@ const SETTINGS = {
   brandLogos:
     "expense-tracker-brand-logos-v1",
 
+  nightMode:
+    "expense-tracker-night-mode-v1",
+
 };
 
 
